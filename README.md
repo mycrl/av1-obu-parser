@@ -15,49 +15,8 @@
   <sup>This is an experimental project currently in progress.</sup>
 </div>
 
-Unlike existing projects, this is an AV1 decoder implemented entirely from scratch in Rust. However, please note that this is just a side project and not intended for production use, so there is no specific focus on performance, and not all features are supported.
+---
 
+Unlike existing projects, this is an AV1 decoder implemented entirely from scratch in Rust. Note, however, that this is an experimental project, not intended for production use, so there is no particular focus on performance, and only basic features will be implemented.
 
-## Roadmap
-
-#### Obu
-
-* [x] sequence header.
-* [x] metadata.
-* [ ] frame header. <sup>[in progress]</sup>
-* [ ] frame. <sup>[in progress]</sup>
-* [x] tile list.
-* [ ] tile group.
-* [ ] padding.
-* [ ] redundant frame header.
-* [ ] temporal delimiter.
-
-#### Reconstruction
-
-* [ ] DCT.
-* [ ] ADST.
-* [ ] walsh hadamard.
-* [ ] CDEF.
-* [ ] loop filter.
-* [ ] motion field estimation.
-* [ ] motion vector prediction.
-* [ ] intra prediction.
-* [ ] inter prediction.
-* [ ] box filter.
-* [ ] self guided filter.
-* [ ] wiener filter.
-
-#### Public Interface
-
-* [ ] av1 decoder. <sup>[in progress]</sup>
-* [ ] av1 decoder error. <sup>[in progress]</sup>
-* [ ] obu enum. <sup>[in progress]</sup>
-
-#### Other
-
-* [ ] tests.
-* [ ] examples. <sup>[in progress]</sup>
-
-
-### License
-[GPL](./LICENSE) Copyright (c) 2023 Mr.Panda.
+This project is mainly for learning and understanding the features of AV1 encoding and video encoding.

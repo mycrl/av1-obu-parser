@@ -1,6 +1,6 @@
 <!--lint disable no-literal-urls-->
 <div align="center">
-  <h1>Rust AV1 Decoder</h1>
+  <h1>DAVOne</h1>
 </div>
 <br/>
 <div align="center">

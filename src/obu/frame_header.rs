@@ -1,6 +1,5 @@
 use super::{
-    sequence_header::FrameIdNumbersPresent,
-    ObuError, ObuUnknownError, ObuContext, Buffer,
+    sequence_header::FrameIdNumbersPresent, Buffer, ObuContext, ObuError, ObuUnknownError,
 };
 
 use crate::constants::{
@@ -125,11 +124,7 @@ pub fn render_size(ctx: &mut ObuContext, buf: &mut Buffer) {
 }
 
 #[inline]
-pub fn frame_size_with_refs(
-    ctx: &mut ObuContext,
-    frame_size_override: bool,
-    buf: &mut Buffer,
-) {
+pub fn frame_size_with_refs(ctx: &mut ObuContext, frame_size_override: bool, buf: &mut Buffer) {
     let mut found_ref = false;
     for _ in 0..REFS_PER_FRAME {
         // found_ref	f(1)
@@ -173,11 +168,7 @@ impl TryFrom<u8> for InterpolationFilter {
             2 => Self::EighttapSharp,
             3 => Self::Bilinear,
             4 => Self::Switchable,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::InterpolationFilter,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::InterpolationFilter)),
         })
     }
 }
@@ -195,27 +186,17 @@ pub fn read_interpolation_filter(buf: &mut Buffer) -> Result<InterpolationFilter
 }
 
 #[derive(Debug, Clone)]
-pub struct UncompressedHeader {}
+pub struct UncompressedHeader;
 
 impl UncompressedHeader {
-    // TODO
-    fn mark_ref_frames(f: &FrameIdNumbersPresent, id_len: usize, current_frame_id: u32) {
-        let diff_len = f.delta_frame_id_length;
-        for i in 0..NUM_REF_FRAMES as usize {
-            if current_frame_id > (1 << diff_len) {
-            } else {
-            }
-        }
-    }
-
     pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
         let sequence_header = ctx
             .sequence_header
-            .clone()
-            .expect("sequence header cannot be found, this is a undefined behavior!");
+            .as_ref()
+            .ok_or_else(|| ObuError::NotFoundSequenceHeader)?;
 
         let mut id_len = 0;
-        if let Some(value) = &sequence_header.frame_id_numbers_present {
+        if let Some(ref value) = sequence_header.frame_id_numbers_present {
             id_len = value.additional_frame_id_length as usize
                 + value.delta_frame_id_length as usize
                 + 3;
@@ -227,8 +208,11 @@ impl UncompressedHeader {
         let mut frame_type = FrameType::KeyFrame;
         let mut show_frame = true;
         let mut showable_frame = false;
+
         let mut refresh_frame_flags = 0;
         let mut error_resilient_mode = false;
+        let mut temporal_point_info = None;
+        let mut display_frame_id = None;
 
         if sequence_header.reduced_still_picture_header {
             ctx.frame_is_intra = true;
@@ -245,20 +229,22 @@ impl UncompressedHeader {
                         .map(|v| v.equal_picture_interval.is_some())
                         .unwrap_or(false)
                     {
-                        let temporal_point_info = TemporalPointInfo::decode(
+                        temporal_point_info = Some(TemporalPointInfo::decode(
                             buf.as_mut(),
                             decoder_model_info.frame_presentation_time_length as usize,
-                        );
+                        ));
                     }
                 }
 
                 if sequence_header.frame_id_numbers_present.is_some() {
                     // display_frame_id	f(idLen)
-                    let display_frame_id = buf.get_bits(id_len);
+                    display_frame_id = Some(buf.get_bits(id_len));
                 }
 
-                // TODO
-                // frame_type = RefFrameType[ frame_to_show_map_idx ]
+                frame_type = *ctx
+                    .frame_type_refs
+                    .get(frame_to_show_map_idx as usize)
+                    .ok_or_else(|| ObuError::Unknown(ObuUnknownError::FrameTypeRefIndex))?;
 
                 if frame_type == FrameType::KeyFrame {
                     refresh_frame_flags = all_frames;
@@ -494,29 +480,28 @@ impl UncompressedHeader {
                 buf.get_bit()
             };
 
-            // for ( i = 0; i < REFS_PER_FRAME; i++ ) {	 
-            //     refFrame = LAST_FRAME + i	 
-            //     hint = RefOrderHint[ ref_frame_idx[ i ] ]	 
-            //     OrderHints[ refFrame ] = hint	 
-            //     if ( !enable_order_hint ) {	 
-            //         RefFrameSignBias[ refFrame ] = 0	 
-            //     } else {	 
-            //         RefFrameSignBias[ refFrame ] = get_relative_dist( hint, OrderHint) > 0	 
-            //     }	 
+            // for ( i = 0; i < REFS_PER_FRAME; i++ ) {
+            //     refFrame = LAST_FRAME + i
+            //     hint = RefOrderHint[ ref_frame_idx[ i ] ]
+            //     OrderHints[ refFrame ] = hint
+            //     if ( !enable_order_hint ) {
+            //         RefFrameSignBias[ refFrame ] = 0
+            //     } else {
+            //         RefFrameSignBias[ refFrame ] = get_relative_dist( hint, OrderHint) > 0
+            //     }
             // }
         }
 
-        let disable_frame_end_update_cdf = if sequence_header.reduced_still_picture_header || disable_cdf_update {
-            true
-        } else {
-            // disable_frame_end_update_cdf	f(1)
-            buf.get_bit()
-        };
+        let disable_frame_end_update_cdf =
+            if sequence_header.reduced_still_picture_header || disable_cdf_update {
+                true
+            } else {
+                // disable_frame_end_update_cdf	f(1)
+                buf.get_bit()
+            };
 
         if primary_ref_frame == PRIMARY_REF_NONE {
-
         } else {
-            
         }
 
         Ok(Self {})
@@ -529,6 +514,7 @@ pub struct FrameHeader {}
 impl FrameHeader {
     pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
         if ctx.seen_frame_header {
+            // TODO:
             // frame_header_copy
         } else {
             ctx.seen_frame_header = true;

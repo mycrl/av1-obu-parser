@@ -1,4 +1,4 @@
-use super::{ObuError, ObuUnknownError, Buffer};
+use super::{Buffer, ObuError, ObuUnknownError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetadataType {
@@ -21,11 +21,7 @@ impl TryFrom<u8> for MetadataType {
             4 => Self::ItutT35,
             5 => Self::Timecode,
             6..=31 => Self::UnregisteredUserPrivate,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::ChromaSamplePosition,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::ChromaSamplePosition)),
         })
     }
 }
@@ -213,11 +209,7 @@ impl TryFrom<u8> for ScalabilityModeIdc {
             26 => Self::L3T3KeyShift,
             27 => Self::L4T5KeyShift,
             28 => Self::L4T7KeyShift,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::ScalabilityModeIdc,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::ScalabilityModeIdc)),
         })
     }
 }

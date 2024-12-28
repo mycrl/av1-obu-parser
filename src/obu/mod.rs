@@ -5,7 +5,8 @@ pub mod sequence_header;
 pub mod tile_group;
 pub mod tile_list;
 
-use frame_header::FrameHeader;
+use frame::Frame;
+use frame_header::{FrameHeader, FrameType};
 use sequence_header::SequenceHeader;
 
 use crate::{buffer::Buffer, constants::NUM_REF_FRAMES};
@@ -51,11 +52,7 @@ impl TryFrom<u8> for ObuType {
             7 => Self::RedundantFrameHeader,
             8 => Self::TileList,
             15 => Self::Padding,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::ObuHeaderType,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::ObuHeaderType)),
         })
     }
 }
@@ -127,6 +124,7 @@ impl ObuHeader {
 #[derive(Debug)]
 pub enum Obu {
     SequenceHeader(SequenceHeader),
+    Frame(Frame),
     TemporalDelimiter,
     Drop,
 }
@@ -140,10 +138,7 @@ pub struct ObuParser {
 }
 
 impl ObuParser {
-    pub fn parse(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> Result<Obu, ObuError> {
+    pub fn parse(&mut self, buf: &mut Buffer) -> Result<Obu, ObuError> {
         let header = ObuHeader::decode(buf.as_mut())?;
         let size = if header.has_size {
             // obu_size leb128()
@@ -166,13 +161,15 @@ impl ObuParser {
         }
 
         Ok(match header.r#type {
-            ObuType::SequenceHeader => Obu::SequenceHeader(SequenceHeader::decode(&mut self.ctx, buf)?),
+            ObuType::SequenceHeader => {
+                Obu::SequenceHeader(SequenceHeader::decode(&mut self.ctx, buf)?)
+            }
+            ObuType::Frame => Obu::Frame(Frame::decode(&mut self.ctx, buf)?),
             ObuType::TemporalDelimiter => Obu::TemporalDelimiter,
-            _ => todo!()
+            _ => todo!(),
         })
     }
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObuUnknownError {
@@ -186,11 +183,13 @@ pub enum ObuUnknownError {
     ScalabilityModeIdc,
     FrameType,
     InterpolationFilter,
+    FrameTypeRefIndex,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObuError {
     Unknown(ObuUnknownError),
+    NotFoundSequenceHeader,
 }
 
 impl std::error::Error for ObuError {}
@@ -201,31 +200,14 @@ impl std::fmt::Display for ObuError {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct ObuContextOptions {
-    pub obu_size: Option<usize>,
-}
-
-#[derive(Debug)]
-pub struct ObuContextRef {
-    pub sequence_header: SequenceHeader,
-    pub frame_header: FrameHeader,
-}
-
 #[derive(Default, Debug)]
 pub struct ObuContext {
-    pub options: ObuContextOptions,
-    pub operating_point_idc: u16,
-    pub operating_point: usize,
-    pub order_hint_bits: usize,
-    pub bit_depth: u8,
+    pub sequence_header: Option<SequenceHeader>,
+    pub obu_header_extension: Option<ObuHeaderExtension>,
     pub num_planes: u8,
     pub seen_frame_header: bool,
-    pub sequence_header: Option<SequenceHeader>,
     pub frame_is_intra: bool,
-    pub refs: [Option<ObuContextRef>; NUM_REF_FRAMES as usize],
     pub order_hint: u32,
-    pub obu_header_extension: Option<ObuHeaderExtension>,
     pub frame_width: u16,
     pub frame_height: u16,
     pub superres_denom: u8,
@@ -235,4 +217,9 @@ pub struct ObuContext {
     pub render_width: u16,
     pub render_height: u16,
     pub delta_frame_id: u32,
+    pub bit_depth: u8,
+    pub order_hint_bits: usize,
+    pub operating_point: usize,
+    pub operating_point_idc: u16,
+    pub frame_type_refs: Vec<FrameType>,
 }

@@ -1,6 +1,4 @@
-use super::{
-    ObuError, ObuUnknownError, ObuContext, Buffer,
-};
+use super::{Buffer, ObuContext, ObuError, ObuUnknownError};
 
 use crate::constants::{SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS};
 
@@ -37,11 +35,7 @@ impl TryFrom<u8> for ColorPrimaries {
             11 => Self::Smpte431,
             12 => Self::Smpte432,
             22 => Self::Ebu3213,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::ColorPrimaries,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::ColorPrimaries)),
         })
     }
 }
@@ -89,11 +83,7 @@ impl TryFrom<u8> for TransferCharacteristics {
             16 => Self::Smpte2084,
             17 => Self::Smpte428,
             18 => Self::Hlg,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::TransferCharacteristics,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::TransferCharacteristics)),
         })
     }
 }
@@ -135,11 +125,7 @@ impl TryFrom<u8> for MatrixCoefficients {
             12 => Self::ChromatNcl,
             13 => Self::ChromatCl,
             14 => Self::Ictcp,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::MatrixCoefficients,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::MatrixCoefficients)),
         })
     }
 }
@@ -159,11 +145,7 @@ impl TryFrom<u8> for ChromaSamplePosition {
             0 => Self::Unknown,
             1 => Self::Vertical,
             2 => Self::Colocated,
-            _ => {
-                return Err(ObuError::Unknown(
-                    ObuUnknownError::ChromaSamplePosition,
-                ))
-            }
+            _ => return Err(ObuError::Unknown(ObuUnknownError::ChromaSamplePosition)),
         })
     }
 }
@@ -266,7 +248,7 @@ impl ColorConfig {
                 separate_uv_delta_q: false,
             });
         }
-        
+
         if color_primaries == ColorPrimaries::Bt709
             && transfer_characteristics == TransferCharacteristics::Srgb
             && matrix_coefficients == MatrixCoefficients::Identity
@@ -693,8 +675,6 @@ impl SequenceHeader {
 
         // film_grain_params_present	f(1)
         let film_grain_params_present = buf.get_bit();
-
-        println!("{:#?}", ctx);
 
         Ok(Self {
             seq_profile,

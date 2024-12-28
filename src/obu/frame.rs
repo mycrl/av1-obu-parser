@@ -1,6 +1,12 @@
-use super::frame_header::FrameHeader;
+use crate::buffer::Buffer;
+
+use super::{ObuContext, ObuError};
 
 #[derive(Debug, Clone)]
-pub struct Frame {
-    pub frame_header: FrameHeader,
+pub struct Frame {}
+
+impl Frame {
+    pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
+        todo!()
+    }
 }

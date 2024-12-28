@@ -1,10 +1,7 @@
-use tokio::{
-    fs::OpenOptions,
-    io::AsyncReadExt,
-};
+use tokio::{fs::OpenOptions, io::AsyncReadExt};
 
-use davone::{buffer::Buffer, obu::ObuParser};
 use clap::Parser;
+use davone::{buffer::Buffer, obu::ObuParser};
 
 #[derive(Parser)]
 #[command(
@@ -32,6 +29,7 @@ async fn main() {
     let size = file.read(&mut buf).await.unwrap();
 
     let mut buffer = Buffer::new(&buf[..size]);
+    println!("{:#?}", parser.parse(&mut buffer).unwrap());
     println!("{:#?}", parser.parse(&mut buffer).unwrap());
     println!("{:#?}", parser.parse(&mut buffer).unwrap());
 }

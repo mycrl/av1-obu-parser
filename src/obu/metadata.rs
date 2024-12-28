@@ -1,4 +1,4 @@
-use crate::{Av1DecodeError, Av1DecodeUnknownError, Buffer};
+use super::{ObuError, ObuUnknownError, Buffer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MetadataType {
@@ -11,7 +11,7 @@ pub enum MetadataType {
 }
 
 impl TryFrom<u8> for MetadataType {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -22,8 +22,8 @@ impl TryFrom<u8> for MetadataType {
             5 => Self::Timecode,
             6..=31 => Self::UnregisteredUserPrivate,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::ChromaSamplePosition,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::ChromaSamplePosition,
                 ))
             }
         })
@@ -180,7 +180,7 @@ pub enum ScalabilityModeIdc {
 }
 
 impl TryFrom<u8> for ScalabilityModeIdc {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -214,8 +214,8 @@ impl TryFrom<u8> for ScalabilityModeIdc {
             27 => Self::L4T5KeyShift,
             28 => Self::L4T7KeyShift,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::ScalabilityModeIdc,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::ScalabilityModeIdc,
                 ))
             }
         })
@@ -260,7 +260,7 @@ pub enum Metadata {
 }
 
 impl Metadata {
-    pub fn decode(buf: &mut Buffer) -> Result<Self, Av1DecodeError> {
+    pub fn decode(buf: &mut Buffer) -> Result<Self, ObuError> {
         // metadata_type	leb128()
         let kind = buf.get_leb128() as u8;
         Ok(match MetadataType::try_from(kind)? {

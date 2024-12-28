@@ -1,5 +1,5 @@
 [package]
-name = "toy-rav1d"
+name = "davone"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,5 +9,5 @@ name = "simple"
 [dependencies]
 
 [dev-dependencies]
-bytes = "1"
 tokio = { version = "1.34.0", features = ["full"] }
+clap = { version = "4.5.19", features = ["derive"] }

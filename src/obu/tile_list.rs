@@ -1,4 +1,4 @@
-use crate::Buffer;
+use super::Buffer;
 
 #[derive(Debug, Clone, Copy)]
 pub struct TileListEntry {

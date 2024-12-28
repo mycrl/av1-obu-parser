@@ -5,14 +5,17 @@ pub mod sequence_header;
 pub mod tile_group;
 pub mod tile_list;
 
-use crate::{Av1DecodeError, Av1DecodeUnknownError, Av1DecoderContext, Buffer};
+use frame_header::FrameHeader;
+use sequence_header::SequenceHeader;
+
+use crate::{buffer::Buffer, constants::NUM_REF_FRAMES};
 
 /// see: https://aomediacodec.github.io/av1-spec/#obu-header-semantics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ObuKind {
+pub enum ObuType {
     Reserved(u8),
     SequenceHeader,
-    // Note: The temporal delimiter has an empty payload.
+    /// Note: The temporal delimiter has an empty payload.
     TemporalDelimiter,
     FrameHeader,
     TileGroup,
@@ -20,21 +23,21 @@ pub enum ObuKind {
     Frame,
     RedundantFrameHeader,
     TileList,
-    // // Note: obu_padding_length is not coded in the bitstream but can be computed based on
-    // obu_size minus the number of trailing bytes. In practice, though, since this is padding
-    // data meant to be skipped, decoders do not need to determine either that length nor the
-    // number of trailing bytes. They can ignore the entire OBU. Ignoring the OBU can be done
-    // based on obu_size. The last byte of the valid content of the payload data for this OBU type
-    // is considered to be the last byte that is not equal to zero. This rule is to prevent the
-    // dropping of valid bytes by systems that interpret trailing zero bytes as a continuation of
-    // the trailing bits in an OBU. This implies that when any payload data is present for this
-    // OBU type, at least one byte of the payload data (including the trailing bit) shall not be
-    // equal to 0.
+    /// Note: obu_padding_length is not coded in the bitstream but can be computed based on
+    /// obu_size minus the number of trailing bytes. In practice, though, since this is padding
+    /// data meant to be skipped, decoders do not need to determine either that length nor the
+    /// number of trailing bytes. They can ignore the entire OBU. Ignoring the OBU can be done
+    /// based on obu_size. The last byte of the valid content of the payload data for this OBU type
+    /// is considered to be the last byte that is not equal to zero. This rule is to prevent the
+    /// dropping of valid bytes by systems that interpret trailing zero bytes as a continuation of
+    /// the trailing bits in an OBU. This implies that when any payload data is present for this
+    /// OBU type, at least one byte of the payload data (including the trailing bit) shall not be
+    /// equal to 0.
     Padding,
 }
 
-impl TryFrom<u8> for ObuKind {
-    type Error = Av1DecodeError;
+impl TryFrom<u8> for ObuType {
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -49,8 +52,8 @@ impl TryFrom<u8> for ObuKind {
             8 => Self::TileList,
             15 => Self::Padding,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::ObuHeaderKind,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::ObuHeaderType,
                 ))
             }
         })
@@ -65,7 +68,7 @@ pub struct ObuHeaderExtension {
 }
 
 impl ObuHeaderExtension {
-    pub fn decode(buf: &mut Buffer<'_>) -> Result<Self, Av1DecodeError> {
+    pub fn decode(buf: &mut Buffer<'_>) -> Result<Self, ObuError> {
         // temporal_id f(3)
         let temporal_id = buf.get_bits(3) as u8;
 
@@ -85,24 +88,24 @@ impl ObuHeaderExtension {
 /// see: https://aomediacodec.github.io/av1-spec/#obu-header-syntax
 #[derive(Debug, Clone, Copy)]
 pub struct ObuHeader {
-    pub kind: ObuKind,
-    pub has_size_field: bool,
+    pub r#type: ObuType,
+    pub has_size: bool,
     pub extension: Option<ObuHeaderExtension>,
 }
 
 impl ObuHeader {
-    pub fn decode(buf: &mut Buffer<'_>) -> Result<Self, Av1DecodeError> {
+    pub fn decode(buf: &mut Buffer<'_>) -> Result<Self, ObuError> {
         // obu_forbidden_bit f(1)
         buf.seek_bits(1);
 
         // obu_type f(4)
-        let kind = ObuKind::try_from(buf.get_bits(4) as u8)?;
+        let r#type = ObuType::try_from(buf.get_bits(4) as u8)?;
 
         // obu_extension_flag f(1)
         let obu_extension_flag = buf.get_bit();
 
         // obu_has_size_field f(1)
-        let has_size_field = buf.get_bit();
+        let has_size = buf.get_bit();
 
         // obu_reserved_1bit
         buf.seek_bits(1);
@@ -114,61 +117,122 @@ impl ObuHeader {
         };
 
         Ok(Self {
-            kind,
-            has_size_field,
+            r#type,
+            has_size,
             extension,
         })
     }
 }
 
-pub enum ObuDecodeRet {
-    Obu(Obu),
+#[derive(Debug)]
+pub enum Obu {
+    SequenceHeader(SequenceHeader),
+    TemporalDelimiter,
     Drop,
 }
 
-#[derive(Debug, Clone)]
-/// Open Bitstream Unit
+#[derive(Default)]
+/// Open Bitstream Unit Parser
 ///
 /// see: https://aomediacodec.github.io/av1-spec/#obu-syntax
-pub struct Obu {
-    pub header: ObuHeader,
-    pub size: usize,
+pub struct ObuParser {
+    pub ctx: ObuContext,
 }
 
-impl Obu {
-    pub fn decode(
-        ctx: &mut Av1DecoderContext,
+impl ObuParser {
+    pub fn parse(
+        &mut self,
         buf: &mut Buffer,
-    ) -> Result<ObuDecodeRet, Av1DecodeError> {
+    ) -> Result<Obu, ObuError> {
         let header = ObuHeader::decode(buf.as_mut())?;
-        let size = if header.has_size_field {
+        let size = if header.has_size {
             // obu_size leb128()
-            buf.get_leb128() as usize
+            Some(buf.get_leb128() as usize)
         } else {
-            ctx.options
-                .obu_size
-                .expect("obu does not contain length, please specify the length manually!")
-                - 1
-                - if header.extension.is_some() { 1 } else { 0 }
+            None
         };
 
-        if header.kind != ObuKind::SequenceHeader
-            && header.kind != ObuKind::TemporalDelimiter
-            && ctx.operating_point_idc > 0
+        if header.r#type != ObuType::SequenceHeader
+            && header.r#type != ObuType::TemporalDelimiter
+            && self.ctx.operating_point_idc != 0
         {
             if let Some(ext) = header.extension {
                 let in_temporal_layer = (1 >> ext.temporal_id) & 1;
                 let in_spatial_layer = (1 >> (ext.spatial_id + 8)) & 1;
                 if in_temporal_layer == 0 || in_spatial_layer == 0 {
-                    return Ok(ObuDecodeRet::Drop);
+                    return Ok(Obu::Drop);
                 }
             }
         }
 
-        if header.kind == ObuKind::TemporalDelimiter {
-            ctx.seen_frame_header = false;
-        }
-
-        Ok(ObuDecodeRet::Obu(Self { header, size }))
+        Ok(match header.r#type {
+            ObuType::SequenceHeader => Obu::SequenceHeader(SequenceHeader::decode(&mut self.ctx, buf)?),
+            ObuType::TemporalDelimiter => Obu::TemporalDelimiter,
+            _ => todo!()
+        })
     }
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObuUnknownError {
+    ObuHeaderType,
+    Profile,
+    ColorPrimaries,
+    TransferCharacteristics,
+    MatrixCoefficients,
+    ChromaSamplePosition,
+    MetadataType,
+    ScalabilityModeIdc,
+    FrameType,
+    InterpolationFilter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObuError {
+    Unknown(ObuUnknownError),
+}
+
+impl std::error::Error for ObuError {}
+
+impl std::fmt::Display for ObuError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ObuContextOptions {
+    pub obu_size: Option<usize>,
+}
+
+#[derive(Debug)]
+pub struct ObuContextRef {
+    pub sequence_header: SequenceHeader,
+    pub frame_header: FrameHeader,
+}
+
+#[derive(Default, Debug)]
+pub struct ObuContext {
+    pub options: ObuContextOptions,
+    pub operating_point_idc: u16,
+    pub operating_point: usize,
+    pub order_hint_bits: usize,
+    pub bit_depth: u8,
+    pub num_planes: u8,
+    pub seen_frame_header: bool,
+    pub sequence_header: Option<SequenceHeader>,
+    pub frame_is_intra: bool,
+    pub refs: [Option<ObuContextRef>; NUM_REF_FRAMES as usize],
+    pub order_hint: u32,
+    pub obu_header_extension: Option<ObuHeaderExtension>,
+    pub frame_width: u16,
+    pub frame_height: u16,
+    pub superres_denom: u8,
+    pub upscaled_width: u16,
+    pub mi_cols: u32,
+    pub mi_rows: u32,
+    pub render_width: u16,
+    pub render_height: u16,
+    pub delta_frame_id: u32,
 }

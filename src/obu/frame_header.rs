@@ -1,10 +1,11 @@
-use crate::{
-    constants::{
-        NUM_REF_FRAMES, PRIMARY_REF_NONE, REFS_PER_FRAME, SELECT_INTEGER_MV,
-        SELECT_SCREEN_CONTENT_TOOLS, SUPERRES_DENOM_BITS, SUPERRES_DENOM_MIN, SUPERRES_NUM,
-    },
-    obu::sequence_header::FrameIdNumbersPresent,
-    Av1DecodeError, Av1DecodeUnknownError, Av1DecoderContext, Buffer,
+use super::{
+    sequence_header::FrameIdNumbersPresent,
+    ObuError, ObuUnknownError, ObuContext, Buffer,
+};
+
+use crate::constants::{
+    NUM_REF_FRAMES, PRIMARY_REF_NONE, REFS_PER_FRAME, SELECT_INTEGER_MV,
+    SELECT_SCREEN_CONTENT_TOOLS, SUPERRES_DENOM_BITS, SUPERRES_DENOM_MIN, SUPERRES_NUM,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,7 +17,7 @@ pub enum FrameType {
 }
 
 impl TryFrom<u8> for FrameType {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -24,7 +25,7 @@ impl TryFrom<u8> for FrameType {
             1 => Self::InterFrame,
             2 => Self::InterOnlyFrame,
             3 => Self::SwitchFrame,
-            _ => return Err(Av1DecodeError::Unknown(Av1DecodeUnknownError::FrameType)),
+            _ => return Err(ObuError::Unknown(ObuUnknownError::FrameType)),
         })
     }
 }
@@ -44,13 +45,13 @@ impl TemporalPointInfo {
 }
 
 #[inline]
-pub fn compute_image_size(ctx: &mut Av1DecoderContext) {
+pub fn compute_image_size(ctx: &mut ObuContext) {
     ctx.mi_cols = 2 * ((ctx.frame_width + 7) >> 3) as u32;
     ctx.mi_rows = 2 * ((ctx.frame_height + 7) >> 3) as u32;
 }
 
 #[inline]
-pub fn frame_size(ctx: &mut Av1DecoderContext, frame_size_override: bool, buf: &mut Buffer) {
+pub fn frame_size(ctx: &mut ObuContext, frame_size_override: bool, buf: &mut Buffer) {
     let sequence_header = ctx
         .sequence_header
         .as_ref()
@@ -78,7 +79,7 @@ pub fn frame_size(ctx: &mut Av1DecoderContext, frame_size_override: bool, buf: &
 }
 
 #[inline]
-pub fn superres_params(ctx: &mut Av1DecoderContext, buf: &mut Buffer) {
+pub fn superres_params(ctx: &mut ObuContext, buf: &mut Buffer) {
     let sequence_header = ctx
         .sequence_header
         .as_ref()
@@ -105,7 +106,7 @@ pub fn superres_params(ctx: &mut Av1DecoderContext, buf: &mut Buffer) {
 }
 
 #[inline]
-pub fn render_size(ctx: &mut Av1DecoderContext, buf: &mut Buffer) {
+pub fn render_size(ctx: &mut ObuContext, buf: &mut Buffer) {
     // render_and_frame_size_different	f(1)
     let render_and_frame_size_different = buf.get_bit();
     let (width, height) = if render_and_frame_size_different {
@@ -125,7 +126,7 @@ pub fn render_size(ctx: &mut Av1DecoderContext, buf: &mut Buffer) {
 
 #[inline]
 pub fn frame_size_with_refs(
-    ctx: &mut Av1DecoderContext,
+    ctx: &mut ObuContext,
     frame_size_override: bool,
     buf: &mut Buffer,
 ) {
@@ -163,7 +164,7 @@ pub enum InterpolationFilter {
 }
 
 impl TryFrom<u8> for InterpolationFilter {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -173,8 +174,8 @@ impl TryFrom<u8> for InterpolationFilter {
             3 => Self::Bilinear,
             4 => Self::Switchable,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::InterpolationFilter,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::InterpolationFilter,
                 ))
             }
         })
@@ -182,7 +183,7 @@ impl TryFrom<u8> for InterpolationFilter {
 }
 
 #[inline]
-pub fn read_interpolation_filter(buf: &mut Buffer) -> Result<InterpolationFilter, Av1DecodeError> {
+pub fn read_interpolation_filter(buf: &mut Buffer) -> Result<InterpolationFilter, ObuError> {
     // is_filter_switchable	f(1)
     let is_filter_switchable = buf.get_bit();
     Ok(if is_filter_switchable {
@@ -207,7 +208,7 @@ impl UncompressedHeader {
         }
     }
 
-    pub fn decode(ctx: &mut Av1DecoderContext, buf: &mut Buffer) -> Result<Self, Av1DecodeError> {
+    pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
         let sequence_header = ctx
             .sequence_header
             .clone()
@@ -526,7 +527,7 @@ impl UncompressedHeader {
 pub struct FrameHeader {}
 
 impl FrameHeader {
-    pub fn decode(ctx: &mut Av1DecoderContext, buf: &mut Buffer) -> Result<Self, Av1DecodeError> {
+    pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
         if ctx.seen_frame_header {
             // frame_header_copy
         } else {

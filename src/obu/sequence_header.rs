@@ -1,7 +1,8 @@
-use crate::{
-    constants::{SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS},
-    Av1DecodeError, Av1DecodeUnknownError, Av1DecoderContext, Buffer,
+use super::{
+    ObuError, ObuUnknownError, ObuContext, Buffer,
 };
+
+use crate::constants::{SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
@@ -20,7 +21,7 @@ pub enum ColorPrimaries {
 }
 
 impl TryFrom<u8> for ColorPrimaries {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -37,8 +38,8 @@ impl TryFrom<u8> for ColorPrimaries {
             12 => Self::Smpte432,
             22 => Self::Ebu3213,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::ColorPrimaries,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::ColorPrimaries,
                 ))
             }
         })
@@ -67,7 +68,7 @@ pub enum TransferCharacteristics {
 }
 
 impl TryFrom<u8> for TransferCharacteristics {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -89,8 +90,8 @@ impl TryFrom<u8> for TransferCharacteristics {
             17 => Self::Smpte428,
             18 => Self::Hlg,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::TransferCharacteristics,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::TransferCharacteristics,
                 ))
             }
         })
@@ -116,7 +117,7 @@ pub enum MatrixCoefficients {
 }
 
 impl TryFrom<u8> for MatrixCoefficients {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -135,8 +136,8 @@ impl TryFrom<u8> for MatrixCoefficients {
             13 => Self::ChromatCl,
             14 => Self::Ictcp,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::MatrixCoefficients,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::MatrixCoefficients,
                 ))
             }
         })
@@ -151,7 +152,7 @@ pub enum ChromaSamplePosition {
 }
 
 impl TryFrom<u8> for ChromaSamplePosition {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
@@ -159,8 +160,8 @@ impl TryFrom<u8> for ChromaSamplePosition {
             1 => Self::Vertical,
             2 => Self::Colocated,
             _ => {
-                return Err(Av1DecodeError::Unknown(
-                    Av1DecodeUnknownError::ChromaSamplePosition,
+                return Err(ObuError::Unknown(
+                    ObuUnknownError::ChromaSamplePosition,
                 ))
             }
         })
@@ -185,10 +186,10 @@ pub struct ColorConfig {
 
 impl ColorConfig {
     pub fn decode(
-        ctx: &mut Av1DecoderContext,
+        ctx: &mut ObuContext,
         buf: &mut Buffer,
         profile: SequenceProfile,
-    ) -> Result<Self, Av1DecodeError> {
+    ) -> Result<Self, ObuError> {
         // high_bitdepth	f(1)
         let high_bitdepth = buf.get_bit();
 
@@ -209,7 +210,7 @@ impl ColorConfig {
             }
         };
 
-        let mono_chrome = if profile == SequenceProfile::Main {
+        let mono_chrome = if profile == SequenceProfile::High {
             false
         } else {
             // mono_chrome	f(1)
@@ -238,7 +239,6 @@ impl ColorConfig {
                 )
             };
 
-        let mut separate_uv_delta_q = false;
         let mut color_range = false;
         let mut subsampling_x = false;
         let mut subsampling_y = false;
@@ -251,9 +251,23 @@ impl ColorConfig {
             subsampling_y = true;
             chroma_sample_position = Some(ChromaSamplePosition::Unknown);
 
-            // TODO:
-            // return
-        } else if color_primaries == ColorPrimaries::Bt709
+            return Ok(Self {
+                high_bitdepth,
+                twelve_bit,
+                mono_chrome,
+                color_description_present,
+                color_primaries,
+                transfer_characteristics,
+                matrix_coefficients,
+                color_range,
+                subsampling_x,
+                subsampling_y,
+                chroma_sample_position,
+                separate_uv_delta_q: false,
+            });
+        }
+        
+        if color_primaries == ColorPrimaries::Bt709
             && transfer_characteristics == TransferCharacteristics::Srgb
             && matrix_coefficients == MatrixCoefficients::Identity
         {
@@ -293,7 +307,7 @@ impl ColorConfig {
         };
 
         // separate_uv_delta_q	f(1)
-        separate_uv_delta_q = buf.get_bit();
+        let separate_uv_delta_q = buf.get_bit();
 
         Ok(Self {
             high_bitdepth,
@@ -320,14 +334,14 @@ pub enum SequenceProfile {
 }
 
 impl TryFrom<u8> for SequenceProfile {
-    type Error = Av1DecodeError;
+    type Error = ObuError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0 => Self::Main,
             1 => Self::High,
             2 => Self::Professional,
-            _ => return Err(Av1DecodeError::Unknown(Av1DecodeUnknownError::Profile)),
+            _ => return Err(ObuError::Unknown(ObuUnknownError::Profile)),
         })
     }
 }
@@ -464,6 +478,7 @@ pub struct SequenceHeader {
     pub enable_order_hint: bool,
     pub enable_jnt_comp: bool,
     pub enable_ref_frame_mvs: bool,
+    pub seq_choose_screen_content_tools: bool,
     pub seq_force_screen_content_tools: u8,
     pub seq_force_integer_mv: u8,
     pub enable_superres: bool,
@@ -474,7 +489,7 @@ pub struct SequenceHeader {
 }
 
 impl SequenceHeader {
-    pub fn decode(ctx: &mut Av1DecoderContext, buf: &mut Buffer) -> Result<Self, Av1DecodeError> {
+    pub fn decode(ctx: &mut ObuContext, buf: &mut Buffer) -> Result<Self, ObuError> {
         // seq_profile f(3)
         let seq_profile = SequenceProfile::try_from(buf.get_bits(3) as u8)?;
 
@@ -574,16 +589,16 @@ impl SequenceHeader {
             .idc;
 
         // frame_width_bits_minus_1	f(4)
-        let frame_width_bits = buf.get_bits(4) as u8 + 1;
+        let frame_width_bits = buf.get_bits(4) as u8;
 
         // frame_height_bits_minus_1	f(4)
-        let frame_height_bits = buf.get_bits(4) as u8 + 1;
+        let frame_height_bits = buf.get_bits(4) as u8;
 
         // max_frame_width_minus_1	f(n)
-        let max_frame_width = buf.get_bits(frame_width_bits as usize) as u16 + 1;
+        let max_frame_width = buf.get_bits(frame_width_bits as usize + 1) as u16;
 
         // max_frame_height_minus_1	f(n)
-        let max_frame_height = buf.get_bits(frame_height_bits as usize) as u16 + 1;
+        let max_frame_height = buf.get_bits(frame_height_bits as usize + 1) as u16;
 
         let frame_id_numbers_present = if !reduced_still_picture_header {
             // frame_id_numbers_present_flag	f(1)
@@ -612,6 +627,7 @@ impl SequenceHeader {
         let mut enable_order_hint = false;
         let mut enable_jnt_comp = false;
         let mut enable_ref_frame_mvs = false;
+        let mut seq_choose_screen_content_tools = false;
         let mut seq_force_screen_content_tools = SELECT_SCREEN_CONTENT_TOOLS;
         let mut seq_force_integer_mv = SELECT_INTEGER_MV;
 
@@ -641,7 +657,7 @@ impl SequenceHeader {
             }
 
             // seq_choose_screen_content_tools	f(1)
-            let seq_choose_screen_content_tools = buf.get_bit();
+            seq_choose_screen_content_tools = buf.get_bit();
             if !seq_choose_screen_content_tools {
                 // seq_force_screen_content_tools	f(1)
                 seq_force_screen_content_tools = buf.get_bit() as u8;
@@ -678,6 +694,8 @@ impl SequenceHeader {
         // film_grain_params_present	f(1)
         let film_grain_params_present = buf.get_bit();
 
+        println!("{:#?}", ctx);
+
         Ok(Self {
             seq_profile,
             still_picture,
@@ -701,6 +719,7 @@ impl SequenceHeader {
             enable_order_hint,
             enable_jnt_comp,
             enable_ref_frame_mvs,
+            seq_choose_screen_content_tools,
             seq_force_screen_content_tools,
             seq_force_integer_mv,
             enable_superres,

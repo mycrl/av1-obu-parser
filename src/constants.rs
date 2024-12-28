@@ -14,8 +14,7 @@ pub const INTRABC_DELAY_PIXELS: u16 = 256; // Number of horizontal luma samples 
 pub const INTRABC_DELAY_SB64: u8 = 4; // Number of 64 by 64 blocks before intra block copy can be used
 pub const NUM_REF_FRAMES: u8 = 8; // Number of frames that can be stored for future reference
 pub const IS_INTER_CONTEXTS: u8 = 4; // Number of contexts for is_inter
-pub const REF_CONTEXTS: u8 = 3; // Number of contexts for single_ref, comp_ref, comp_bwdref, uni_comp_ref,
-                                // uni_comp_ref_p1 and uni_comp_ref_p2
+pub const REF_CONTEXTS: u8 = 3; // Number of contexts for single_ref, comp_ref, comp_bwdref, uni_comp_ref, uni_comp_ref_p1 and uni_comp_ref_p2
 pub const MAX_SEGMENTS: u8 = 8; // Number of segments allowed in segmentation map
 pub const SEGMENT_ID_CONTEXTS: u8 = 3; // Number of contexts for segment_id
 pub const SEG_LVL_ALT_Q: u8 = 0; // Index for quantizer segment feature
@@ -62,8 +61,7 @@ pub const NEW_MV_CONTEXTS: u8 = 6; // Number of contexts for new_mv
 pub const ZERO_MV_CONTEXTS: u8 = 2; // Number of contexts for zero_mv
 pub const REF_MV_CONTEXTS: u8 = 6; // Number of contexts for ref_mv
 pub const DRL_MODE_CONTEXTS: u8 = 3; // Number of contexts for drl_mode
-pub const MV_CONTEXTS: u8 = 2; // Number of contexts for decoding motion vectors including one for intra block
-                               // copy
+pub const MV_CONTEXTS: u8 = 2; // Number of contexts for decoding motion vectors including one for intra block copy
 pub const MV_INTRABC_CONTEXT: u8 = 1; // Motion vector context used for intra block copy
 pub const MV_JOINTS: u8 = 4; // Number of values for mv_joint
 pub const MV_CLASSES: u8 = 11; // Number of values for mv_class
@@ -96,12 +94,9 @@ pub const IDENTITY: u8 = 0; // Warp model is just an identity transform
 pub const TRANSLATION: u8 = 1; // Warp model is a pure translation
 pub const ROTZOOM: u8 = 2; // Warp model is a rotation + symmetric zoom + translation
 pub const AFFINE: u8 = 3; // Warp model is a general affine transform
-pub const GM_ABS_TRANS_BITS: u8 = 12; // Number of bits encoded for translational components of global motion models,
-                                      // if part of a ROTZOOM or AFFINE model
-pub const GM_ABS_TRANS_ONLY_BITS: u8 = 9; // Number of bits encoded for translational components of global motion models,
-                                          // if part of a TRANSLATION model
-pub const GM_ABS_ALPHA_BITS: u8 = 12; // Number of bits encoded for non-translational components of global motion
-                                      // models
+pub const GM_ABS_TRANS_BITS: u8 = 12; // Number of bits encoded for translational components of global motion models, if part of a ROTZOOM or AFFINE model
+pub const GM_ABS_TRANS_ONLY_BITS: u8 = 9; // Number of bits encoded for translational components of global motion models, if part of a TRANSLATION model
+pub const GM_ABS_ALPHA_BITS: u8 = 12; // Number of bits encoded for non-translational components of global motion models
 pub const DIV_LUT_PREC_BITS: u8 = 14; // Number of fractional bits of entries in divisor lookup table
 pub const DIV_LUT_BITS: u8 = 8; // Number of fractional bits for lookup in divisor lookup table
 pub const DIV_LUT_NUM: u16 = 257; // Number of entries in divisor lookup table
@@ -115,8 +110,7 @@ pub const WARPEDMODEL_TRANS_CLAMP: u32 = 1 << 23; // Clamping value used for tra
 pub const WARPEDMODEL_NONDIAGAFFINE_CLAMP: u32 = 1 << 13; // Clamping value used for matrix components of warp
 pub const WARPEDPIXEL_PREC_SHIFTS: u8 = 1 << 6; // Number of phases used in warped filtering
 pub const WARPEDDIFF_PREC_BITS: u8 = 10; // Number of extra bits of precision in warped filtering
-pub const GM_ALPHA_PREC_BITS: u8 = 15; // Number of fractional bits for sending non-translational warp model
-                                       // coefficients
+pub const GM_ALPHA_PREC_BITS: u8 = 15; // Number of fractional bits for sending non-translational warp model coefficients
 pub const GM_TRANS_PREC_BITS: u8 = 6; // Number of fractional bits for sending translational warp model coefficients
 pub const GM_TRANS_ONLY_PREC_BITS: u8 = 3; // Number of fractional bits used for pure translational warps
 pub const INTERINTRA_MODES: u8 = 4; // Number of inter intra modes
@@ -164,15 +158,12 @@ pub const MAX_OFFSET_WIDTH: u8 = 8; // Maximum horizontal offset of a projected 
 pub const MAX_OFFSET_HEIGHT: u8 = 0; // Maximum vertical offset of a projected motion vector
 pub const WARP_PARAM_REDUCE_BITS: u8 = 6; // Rounding bitwidth for the parameters to the shear process
 pub const NUM_BASE_LEVELS: u8 = 2; // Number of quantizer base levels
-pub const COEFF_BASE_RANGE: u8 = 12; // The quantizer range above NUM_BASE_LEVELS above which the Exp-Golomb coding
-                                     // process is activated
+pub const COEFF_BASE_RANGE: u8 = 12; // The quantizer range above NUM_BASE_LEVELS above which the Exp-Golomb coding process is activated
 pub const BR_CDF_SIZE: u8 = 4; // Number of values for coeff_br
 pub const SIG_COEF_CONTEXTS_EOB: u8 = 4; // Number of contexts for coeff_base_eob
-pub const SIG_COEF_CONTEXTS_2D: u8 = 26; // Context offset for coeff_base for horizontal-only or vertical-only
-                                         // transforms.
+pub const SIG_COEF_CONTEXTS_2D: u8 = 26; // Context offset for coeff_base for horizontal-only or vertical-only transforms.
 pub const SIG_COEF_CONTEXTS: u8 = 42; // Number of contexts for coeff_base
-pub const SIG_REF_DIFF_OFFSET_NUM: u8 = 5; // Maximum number of context samples to be used in determining the context index
-                                           // for coeff_base and coeff_base_eob.
+pub const SIG_REF_DIFF_OFFSET_NUM: u8 = 5; // Maximum number of context samples to be used in determining the context index for coeff_base and coeff_base_eob.
 pub const SUPERRES_NUM: u8 = 8; // Numerator for upscaling ratio
 pub const SUPERRES_DENOM_MIN: u8 = 9; // Smallest denominator for upscaling ratio
 pub const SUPERRES_DENOM_BITS: u8 = 3; // Number of bits sent to specify denominator of upscaling ratio
@@ -187,16 +178,12 @@ pub const TXB_SKIP_CONTEXTS: u8 = 13; // Number of contexts for all_zero
 pub const EOB_COEF_CONTEXTS: u8 = 9; // Number of contexts for eob_extra
 pub const DC_SIGN_CONTEXTS: u8 = 3; // Number of contexts for dc_sign
 pub const LEVEL_CONTEXTS: u8 = 21; // Number of contexts for coeff_br
-pub const TX_CLASS_2D: u8 = 0; // Transform class for transform types performing non-identity transforms in
-                               // both directions
-pub const TX_CLASS_HORIZ: u8 = 1; // Transform class for transforms performing only a horizontal non-identity
-                                  // transform
-pub const TX_CLASS_VERT: u8 = 2; // Transform class for transforms performing only a vertical non-identity
-                                 // transform
+pub const TX_CLASS_2D: u8 = 0; // Transform class for transform types performing non-identity transforms in both directions
+pub const TX_CLASS_HORIZ: u8 = 1; // Transform class for transforms performing only a horizontal non-identity transform
+pub const TX_CLASS_VERT: u8 = 2; // Transform class for transforms performing only a vertical non-identity transform
 pub const REFMVS_LIMIT: u32 = (1 << 12) - 1; // Largest reference MV component that can be saved
 pub const INTRA_FILTER_SCALE_BITS: u8 = 4; // Scaling shift for intra filtering process
 pub const INTRA_FILTER_MODES: u8 = 5; // Number of types of intra filtering
 pub const COEFF_CDF_Q_CTXS: u8 = 4; // Number of selectable context types for the coeff( ) syntax structure
-pub const PRIMARY_REF_NONE: u8 = 7; // Value of primary_ref_frame indicating that there is no primary reference
-                                    // frame
+pub const PRIMARY_REF_NONE: u8 = 7; // Value of primary_ref_frame indicating that there is no primary reference frame
 pub const BUFFER_POOL_MAX_SIZE: u8 = 10; // Number of frames in buffer pool

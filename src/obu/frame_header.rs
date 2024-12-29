@@ -193,6 +193,7 @@ impl UncompressedHeader {
         let sequence_header = ctx
             .sequence_header
             .as_ref()
+            .cloned()
             .ok_or_else(|| ObuError::NotFoundSequenceHeader)?;
 
         let mut id_len = 0;
@@ -242,7 +243,7 @@ impl UncompressedHeader {
                 }
 
                 frame_type = *ctx
-                    .frame_type_refs
+                    .ref_frame_type
                     .get(frame_to_show_map_idx as usize)
                     .ok_or_else(|| ObuError::Unknown(ObuUnknownError::FrameTypeRefIndex))?;
 
@@ -274,10 +275,10 @@ impl UncompressedHeader {
                         .map(|v| v.equal_picture_interval.is_some())
                         .unwrap_or(false)
                     {
-                        let temporal_point_info = TemporalPointInfo::decode(
+                        temporal_point_info = Some(TemporalPointInfo::decode(
                             buf.as_mut(),
                             decoder_model_info.frame_presentation_time_length as usize,
-                        );
+                        ));
                     }
                 }
 
@@ -297,16 +298,19 @@ impl UncompressedHeader {
             };
         }
 
-        // TODO
-        // if ( frame_type == KEY_FRAME && show_frame ) {
-        //     for ( i = 0; i < NUM_REF_FRAMES; i++ ) {
-        //         RefValid[ i ] = 0
-        //         RefOrderHint[ i ] = 0
-        //     }
-        //     for ( i = 0; i < REFS_PER_FRAME; i++ ) {
-        //         OrderHints[ LAST_FRAME + i ] = 0
-        //     }
-        // }
+        if frame_type == FrameType::SwitchFrame && show_frame {
+            for i in 0..NUM_REF_FRAMES as usize {
+                ctx.ref_frame_marking[i] = false;
+                ctx.ref_order_hint[i] = i as u32;
+            }
+
+            for i in 0..REFS_PER_FRAME as u8 {
+                // TODO
+                // OrderHints[ LAST_FRAME + i ] = 0
+                //
+                // ctx.ref_order_hints[i] = 0;
+            }
+        }
 
         // disable_cdf_update	f(1)
         let disable_cdf_update = buf.get_bit();
@@ -375,6 +379,7 @@ impl UncompressedHeader {
                             let in_temporal_layer = ((op_pt_dic >> extension.temporal_id) & 1) != 0;
                             let in_spatial_layer =
                                 ((op_pt_dic >> (extension.spatial_id + 8)) & 1) != 0;
+
                             if op_pt_dic == 0 || (in_temporal_layer && in_spatial_layer) {
                                 // buffer_removal_time[ opNum ]	f(n)
                                 buffer_removal_times.push(buf.get_bits(
@@ -390,6 +395,7 @@ impl UncompressedHeader {
         let mut allow_high_precision_mv = false;
         let mut use_ref_frame_mvs = false;
         let mut allow_intrabc = false;
+        let mut ref_order_hints = None;
 
         refresh_frame_flags = if frame_type == FrameType::SwitchFrame
             || frame_type == FrameType::KeyFrame && show_frame
@@ -399,7 +405,6 @@ impl UncompressedHeader {
             buf.get_bits(8)
         };
 
-        let mut ref_order_hints = None;
         if (!ctx.frame_is_intra || refresh_frame_flags != all_frames)
             && error_resilient_mode
             && sequence_header.enable_order_hint
@@ -408,6 +413,10 @@ impl UncompressedHeader {
             for i in 0..NUM_REF_FRAMES as usize {
                 // ref_order_hint[ i ]	f(OrderHintBits)
                 hints[i] = buf.get_bits(ctx.order_hint_bits);
+
+                if ctx.ref_order_hint[i] != hints[i] {
+                    ctx.ref_frame_marking[i] = false;
+                }
             }
 
             ref_order_hints = Some(hints);

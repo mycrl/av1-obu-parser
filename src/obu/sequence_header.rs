@@ -530,8 +530,8 @@ impl SequenceHeader {
                 let mut operating_parameters_info = None;
                 if decoder_model_info_present_flag {
                     // decoder_model_present_for_this_op[ i ]	f(1)
-                    let ecoder_model_present = buf.get_bit();
-                    if ecoder_model_present {
+                    let decoder_model_present = buf.get_bit();
+                    if decoder_model_present {
                         operating_parameters_info = Some(OperatingParametersInfo::decode(
                             buf.as_mut(),
                             &decoder_model_info.unwrap(),
@@ -571,16 +571,16 @@ impl SequenceHeader {
             .idc;
 
         // frame_width_bits_minus_1	f(4)
-        let frame_width_bits = buf.get_bits(4) as u8;
+        let frame_width_bits = buf.get_bits(4) as u8 + 1;
 
         // frame_height_bits_minus_1	f(4)
-        let frame_height_bits = buf.get_bits(4) as u8;
+        let frame_height_bits = buf.get_bits(4) as u8 + 1;
 
         // max_frame_width_minus_1	f(n)
-        let max_frame_width = buf.get_bits(frame_width_bits as usize + 1) as u16;
+        let max_frame_width = buf.get_bits(frame_width_bits as usize) as u16;
 
         // max_frame_height_minus_1	f(n)
-        let max_frame_height = buf.get_bits(frame_height_bits as usize + 1) as u16;
+        let max_frame_height = buf.get_bits(frame_height_bits as usize) as u16;
 
         let frame_id_numbers_present = if !reduced_still_picture_header {
             // frame_id_numbers_present_flag	f(1)

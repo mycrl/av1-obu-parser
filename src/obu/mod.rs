@@ -9,7 +9,7 @@ use frame::Frame;
 use frame_header::{FrameHeader, FrameType};
 use sequence_header::SequenceHeader;
 
-use crate::{buffer::Buffer, constants::NUM_REF_FRAMES};
+use crate::buffer::Buffer;
 
 /// see: https://aomediacodec.github.io/av1-spec/#obu-header-semantics
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,6 +125,7 @@ impl ObuHeader {
 pub enum Obu {
     SequenceHeader(SequenceHeader),
     Frame(Frame),
+    FrameHeader(FrameHeader),
     TemporalDelimiter,
     Drop,
 }
@@ -164,6 +165,7 @@ impl ObuParser {
             ObuType::SequenceHeader => {
                 Obu::SequenceHeader(SequenceHeader::decode(&mut self.ctx, buf)?)
             }
+            ObuType::FrameHeader => Obu::FrameHeader(FrameHeader::decode(&mut self.ctx, buf)?),
             ObuType::Frame => Obu::Frame(Frame::decode(&mut self.ctx, buf)?),
             ObuType::TemporalDelimiter => Obu::TemporalDelimiter,
             _ => todo!(),
@@ -221,5 +223,8 @@ pub struct ObuContext {
     pub order_hint_bits: usize,
     pub operating_point: usize,
     pub operating_point_idc: u16,
-    pub frame_type_refs: Vec<FrameType>,
+    pub ref_frame_type: Vec<FrameType>,
+    pub ref_frame_marking: Vec<bool>,
+    pub ref_order_hint: Vec<u32>,
+    pub ref_order_hints: Vec<bool>, 
 }

@@ -510,7 +510,15 @@ impl UncompressedHeader {
             };
 
         if primary_ref_frame == PRIMARY_REF_NONE {
+            // TODO:
+            // 
+            // init_non_coeff_cdfs()
+            // setup_past_independence()
         } else {
+            // TODO:
+            //
+            // load_cdfs( ref_frame_idx[ primary_ref_frame ] )
+            // load_previous( )
         }
 
         Ok(Self {})

@@ -1,7 +1,7 @@
 use tokio::{fs::OpenOptions, io::AsyncReadExt};
 
 use clap::Parser;
-use davone::{buffer::Buffer, obu::ObuParser};
+use av1_obu_parser::{buffer::Buffer, obu::ObuParser};
 
 #[derive(Parser)]
 #[command(

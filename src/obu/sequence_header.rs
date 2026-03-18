@@ -221,9 +221,9 @@ impl ColorConfig {
                 )
             };
 
-        let mut color_range = false;
-        let mut subsampling_x = false;
-        let mut subsampling_y = false;
+        let color_range;
+        let subsampling_x;
+        let subsampling_y;
         let mut chroma_sample_position = None;
 
         if mono_chrome {
@@ -431,7 +431,7 @@ impl FrameIdNumbersPresent {
             // delta_frame_id_length_minus_2	f(4)
             delta_frame_id_length: buf.get_bits(4) as u8 + 2,
             // additional_frame_id_length_minus_1	f(3)
-            additional_frame_id_length: buf.get_bits(4) as u8 + 1,
+            additional_frame_id_length: buf.get_bits(3) as u8 + 1,
         }
     }
 }
@@ -577,10 +577,10 @@ impl SequenceHeader {
         let frame_height_bits = buf.get_bits(4) as u8 + 1;
 
         // max_frame_width_minus_1	f(n)
-        let max_frame_width = buf.get_bits(frame_width_bits as usize) as u16;
+        let max_frame_width = buf.get_bits(frame_width_bits as usize) as u16 + 1;
 
         // max_frame_height_minus_1	f(n)
-        let max_frame_height = buf.get_bits(frame_height_bits as usize) as u16;
+        let max_frame_height = buf.get_bits(frame_height_bits as usize) as u16 + 1;
 
         let frame_id_numbers_present = if !reduced_still_picture_header {
             // frame_id_numbers_present_flag	f(1)

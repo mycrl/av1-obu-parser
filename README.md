@@ -11,3 +11,7 @@
   <img src="https://img.shields.io/github/issues/mycrl/av1-obu-parser"/>
   <img src="https://img.shields.io/github/stars/mycrl/av1-obu-parser"/>
 </div>
+
+---
+
+This is not a video decoder! Although it operates on the same principles and follows the same patterns as a video decoder, it does not decode video. This project is a tool for analyzing AV1 video stream information, and it can display the details of an AV1 stream.

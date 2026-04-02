@@ -12,15 +12,84 @@ pub mod sequence_header;
 pub mod tile_group;
 pub mod tile_list;
 
-use frame::Frame;
-use frame_header::{FrameHeader, FrameType};
-use metadata::Metadata;
-use sequence_header::SequenceHeader;
-use tile_group::TileGroup;
-use tile_list::TileList;
+use self::{
+    frame::Frame,
+    frame_header::{FrameHeader, FrameType},
+    metadata::Metadata,
+    sequence_header::SequenceHeader,
+    tile_group::TileGroup,
+    tile_list::TileList,
+};
 
 use crate::buffer::Buffer;
-use crate::constants::{NUM_REF_FRAMES, REFS_PER_FRAME};
+
+/// Number of reference frames that can be used for inter prediction.
+pub const REFS_PER_FRAME: u8 = 7;
+
+/// Number of reference frame types, including the intra type.
+pub const TOTAL_REFS_PER_FRAME: u8 = 8;
+
+/// Maximum width of a tile in luma samples.
+pub const MAX_TILE_WIDTH: u16 = 4096;
+
+/// Maximum area of a tile in luma samples.
+pub const MAX_TILE_AREA: u32 = 4096 * 2304;
+
+/// Maximum number of tile rows.
+pub const MAX_TILE_ROWS: u8 = 64;
+
+/// Maximum number of tile columns.
+pub const MAX_TILE_COLS: u8 = 64;
+
+/// Number of frames that can be stored for future reference.
+pub const NUM_REF_FRAMES: u8 = 8;
+
+/// Number of segments allowed in the segmentation map.
+pub const MAX_SEGMENTS: u8 = 8;
+
+/// Number of bits encoded for translational components of global motion models
+/// used by `ROTZOOM` and `AFFINE`.
+pub const GM_ABS_TRANS_BITS: u8 = 12;
+
+/// Number of bits encoded for translational components of pure translation
+/// global motion models.
+pub const GM_ABS_TRANS_ONLY_BITS: u8 = 9;
+
+/// Number of bits encoded for non-translational global motion components.
+pub const GM_ABS_ALPHA_BITS: u8 = 12;
+
+/// Number of fractional bits for non-translational warp model coefficients.
+pub const GM_ALPHA_PREC_BITS: u8 = 15;
+
+/// Number of fractional bits for translational warp model coefficients.
+pub const GM_TRANS_PREC_BITS: u8 = 6;
+
+/// Number of fractional bits used for pure translational warps.
+pub const GM_TRANS_ONLY_PREC_BITS: u8 = 3;
+
+/// Controls how self-guided restoration deltas are read.
+pub const SGRPROJ_PRJ_SUBEXP_K: u8 = 4;
+
+/// Value indicating that `allow_screen_content_tools` is explicitly coded.
+pub const SELECT_SCREEN_CONTENT_TOOLS: u8 = 2;
+
+/// Value indicating that `force_integer_mv` is explicitly coded.
+pub const SELECT_INTEGER_MV: u8 = 2;
+
+/// Smallest denominator used for super-resolution scaling.
+pub const SUPERRES_DENOM_MIN: u8 = 9;
+
+/// Number of bits sent to specify the super-resolution denominator.
+pub const SUPERRES_DENOM_BITS: u8 = 3;
+
+/// Numerator used for the super-resolution scaling ratio.
+pub const SUPERRES_NUM: u8 = 8;
+
+/// Internal precision of warped motion models.
+pub const WARPEDMODEL_PREC_BITS: u8 = 16;
+
+/// `primary_ref_frame` sentinel indicating there is no primary reference frame.
+pub const PRIMARY_REF_NONE: u8 = 7;
 
 // ─────────────────────────────────────────────────────────────
 // OBU type
@@ -324,7 +393,7 @@ impl Default for ObuContext {
 /// use av1_obu_parser::{buffer::Buffer, obu::ObuParser};
 /// let data: Vec<u8> = vec![]; // AV1 bitstream bytes
 /// let mut parser = ObuParser::default();
-/// let mut buf = Buffer::new(&data);
+/// let mut buf = Buffer::from_slice(&data);
 /// loop {
 ///     match parser.parse(&mut buf) {
 ///         Ok(obu) => println!("{:?}", obu),
@@ -365,10 +434,8 @@ impl ObuParser {
             && self.ctx.operating_point_idc != 0
         {
             if let Some(ext) = header.extension {
-                let in_temporal_layer =
-                    (self.ctx.operating_point_idc >> ext.temporal_id) & 1;
-                let in_spatial_layer =
-                    (self.ctx.operating_point_idc >> (ext.spatial_id + 8)) & 1;
+                let in_temporal_layer = (self.ctx.operating_point_idc >> ext.temporal_id) & 1;
+                let in_spatial_layer = (self.ctx.operating_point_idc >> (ext.spatial_id + 8)) & 1;
                 if in_temporal_layer == 0 || in_spatial_layer == 0 {
                     return Ok(Obu::Drop);
                 }
@@ -382,25 +449,20 @@ impl ObuParser {
         let result = match header.r#type {
             ObuType::SequenceHeader => {
                 let seq = SequenceHeader::decode(&mut self.ctx, buf)?;
+
+                // Store the sequence header so frame-header parsing can use it for
+                // operating-point layer filtering.
+                self.ctx.sequence_header = Some(seq.clone());
+
                 Obu::SequenceHeader(seq)
             }
-
             ObuType::TemporalDelimiter => {
                 // Empty payload; reset seen_frame_header for the new temporal unit.
                 self.ctx.seen_frame_header = false;
                 Obu::TemporalDelimiter
             }
-
-            ObuType::FrameHeader => {
-                let fh = FrameHeader::decode(&mut self.ctx, buf)?;
-                Obu::FrameHeader(fh)
-            }
-
-            ObuType::Frame => {
-                let frame = Frame::decode(&mut self.ctx, buf)?;
-                Obu::Frame(frame)
-            }
-
+            ObuType::FrameHeader => Obu::FrameHeader(FrameHeader::decode(&mut self.ctx, buf)?),
+            ObuType::Frame => Obu::Frame(Frame::decode(&mut self.ctx, buf)?),
             ObuType::TileGroup => {
                 // A standalone TileGroup OBU requires the tile layout from the
                 // preceding FrameHeader OBU.
@@ -408,23 +470,13 @@ impl ObuParser {
                 // we can parse the tile group properly here.
                 Obu::TileGroup(TileGroup::empty())
             }
-
             ObuType::RedundantFrameHeader => {
                 // Identical to the most recent FrameHeader OBU; used only for
                 // error resilience. Safe to ignore for analysis.
                 Obu::RedundantFrameHeader
             }
-
-            ObuType::Metadata => {
-                let meta = Metadata::decode(buf)?;
-                Obu::Metadata(meta)
-            }
-
-            ObuType::TileList => {
-                let tl = TileList::decode(buf);
-                Obu::TileList(tl)
-            }
-
+            ObuType::Metadata => Obu::Metadata(Metadata::decode(buf)?),
+            ObuType::TileList => Obu::TileList(TileList::decode(buf)),
             ObuType::Padding | ObuType::Reserved(_) => {
                 // Padding and reserved OBUs carry no meaningful data.
                 Obu::Drop

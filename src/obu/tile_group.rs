@@ -8,7 +8,7 @@
 /// size, offset) but does not decode the actual image data inside each tile.
 use crate::buffer::Buffer;
 
-use super::{frame_header::TileInfo, ObuContext, ObuError};
+use super::{ObuContext, ObuError, frame_header::TileInfo};
 
 /// Metadata for a single tile within a TileGroup.
 #[derive(Debug, Clone)]

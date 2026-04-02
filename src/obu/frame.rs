@@ -5,11 +5,7 @@
 /// unit and is the most common way frames are encoded in practice.
 use crate::buffer::Buffer;
 
-use super::{
-    frame_header::FrameHeader,
-    tile_group::TileGroup,
-    ObuContext, ObuError,
-};
+use super::{ObuContext, ObuError, frame_header::FrameHeader, tile_group::TileGroup};
 
 /// A complete AV1 frame (parsed from a Frame OBU).
 ///
@@ -52,9 +48,6 @@ impl Frame {
         let num_tiles = header.tile_info.tile_cols * header.tile_info.tile_rows;
         let tile_group = TileGroup::decode(ctx, buf, &header.tile_info, num_tiles)?;
 
-        Ok(Frame {
-            header,
-            tile_group,
-        })
+        Ok(Frame { header, tile_group })
     }
 }

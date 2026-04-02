@@ -5,13 +5,13 @@
 /// and records all key information in the frame header but does not perform
 /// the CDF updates, reference frame buffer management, or other runtime state
 /// maintenance required by a full decoder.
-use super::{Buffer, ObuContext, ObuError, ObuUnknownError};
-
-use crate::constants::{
-    MAX_SEGMENTS, MAX_TILE_AREA, MAX_TILE_COLS, MAX_TILE_ROWS, MAX_TILE_WIDTH,
-    NUM_REF_FRAMES, PRIMARY_REF_NONE, REFS_PER_FRAME, SELECT_INTEGER_MV,
-    SELECT_SCREEN_CONTENT_TOOLS, SGRPROJ_PRJ_SUBEXP_K, SUPERRES_DENOM_BITS, SUPERRES_DENOM_MIN,
-    SUPERRES_NUM, TOTAL_REFS_PER_FRAME,
+use super::{
+    Buffer, GM_ABS_ALPHA_BITS, GM_ABS_TRANS_BITS, GM_ABS_TRANS_ONLY_BITS, GM_ALPHA_PREC_BITS,
+    GM_TRANS_ONLY_PREC_BITS, GM_TRANS_PREC_BITS, MAX_SEGMENTS, MAX_TILE_AREA, MAX_TILE_COLS,
+    MAX_TILE_ROWS, MAX_TILE_WIDTH, NUM_REF_FRAMES, ObuContext, ObuError, ObuUnknownError,
+    PRIMARY_REF_NONE, REFS_PER_FRAME, SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS,
+    SGRPROJ_PRJ_SUBEXP_K, SUPERRES_DENOM_BITS, SUPERRES_DENOM_MIN, SUPERRES_NUM,
+    TOTAL_REFS_PER_FRAME, WARPEDMODEL_PREC_BITS,
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -207,8 +207,7 @@ pub fn superres_params(ctx: &mut ObuContext, buf: &mut Buffer) {
     // UpscaledWidth is the intended output width; FrameWidth is the coded width.
     ctx.upscaled_width = ctx.frame_width;
     ctx.frame_width = (ctx.upscaled_width as u32 * SUPERRES_NUM as u32
-        + ctx.superres_denom as u32 / 2)
-        as u16
+        + ctx.superres_denom as u32 / 2) as u16
         / ctx.superres_denom as u16;
 }
 
@@ -344,8 +343,8 @@ impl TileInfo {
         let min_log2_tile_cols = tile_log2(sb_max_tile_cols, sb_cols);
         let max_log2_tile_cols = tile_log2(1, sb_cols.min(MAX_TILE_COLS as u32));
         let max_log2_tile_rows = tile_log2(1, sb_rows.min(MAX_TILE_ROWS as u32));
-        let min_log2_tiles = min_log2_tile_cols
-            .max(tile_log2(sb_max_tile_area as u32, sb_cols * sb_rows));
+        let min_log2_tiles =
+            min_log2_tile_cols.max(tile_log2(sb_max_tile_area as u32, sb_cols * sb_rows));
 
         // uniform_tile_spacing_flag	f(1)
         let uniform_tile_spacing_flag = buf.get_bit();
@@ -368,8 +367,7 @@ impl TileInfo {
                 }
             }
 
-            let tile_width_sb =
-                (sb_cols + (1 << tile_cols_log2) - 1) >> tile_cols_log2;
+            let tile_width_sb = (sb_cols + (1 << tile_cols_log2) - 1) >> tile_cols_log2;
             let mut start_sb = 0u32;
             let mut i = 0usize;
             while start_sb < sb_cols {
@@ -380,8 +378,7 @@ impl TileInfo {
             mi_col_starts.push(ctx.mi_cols);
             tile_cols = i;
 
-            let min_log2_tile_rows =
-                min_log2_tiles.saturating_sub(tile_cols_log2);
+            let min_log2_tile_rows = min_log2_tiles.saturating_sub(tile_cols_log2);
             tile_rows_log2 = min_log2_tile_rows;
             while tile_rows_log2 < max_log2_tile_rows {
                 // increment_tile_rows_log2	f(1)
@@ -392,8 +389,7 @@ impl TileInfo {
                 }
             }
 
-            let tile_height_sb =
-                (sb_rows + (1 << tile_rows_log2) - 1) >> tile_rows_log2;
+            let tile_height_sb = (sb_rows + (1 << tile_rows_log2) - 1) >> tile_rows_log2;
             let mut start_sb = 0u32;
             let mut i = 0usize;
             while start_sb < sb_rows {
@@ -652,7 +648,8 @@ impl SegmentationParams {
         let mut segmentation_update_map = false;
         let mut segmentation_temporal_update = false;
         let mut segmentation_update_data = false;
-        let mut features = core::array::from_fn(|_| core::array::from_fn(|_| SegmentFeature::default()));
+        let mut features =
+            core::array::from_fn(|_| core::array::from_fn(|_| SegmentFeature::default()));
 
         if segmentation_enabled {
             if primary_ref_frame == PRIMARY_REF_NONE {
@@ -809,7 +806,12 @@ pub struct LoopFilterParams {
 }
 
 impl LoopFilterParams {
-    pub fn decode(ctx: &ObuContext, buf: &mut Buffer, coded_lossless: bool, allow_intrabc: bool) -> Self {
+    pub fn decode(
+        ctx: &ObuContext,
+        buf: &mut Buffer,
+        coded_lossless: bool,
+        allow_intrabc: bool,
+    ) -> Self {
         if coded_lossless || allow_intrabc {
             return Self::default_params();
         }
@@ -906,7 +908,12 @@ pub struct CdefParams {
 }
 
 impl CdefParams {
-    pub fn decode(ctx: &ObuContext, buf: &mut Buffer, coded_lossless: bool, allow_intrabc: bool) -> Self {
+    pub fn decode(
+        ctx: &ObuContext,
+        buf: &mut Buffer,
+        coded_lossless: bool,
+        allow_intrabc: bool,
+    ) -> Self {
         let seq = ctx.sequence_header.as_ref().unwrap();
 
         if coded_lossless || allow_intrabc || !seq.enable_cdef {
@@ -1008,7 +1015,12 @@ pub struct LrParams {
 }
 
 impl LrParams {
-    pub fn decode(ctx: &ObuContext, buf: &mut Buffer, all_lossless: bool, allow_intrabc: bool) -> Self {
+    pub fn decode(
+        ctx: &ObuContext,
+        buf: &mut Buffer,
+        all_lossless: bool,
+        allow_intrabc: bool,
+    ) -> Self {
         let seq = ctx.sequence_header.as_ref().unwrap();
 
         if all_lossless || allow_intrabc || !seq.enable_restoration {
@@ -1125,11 +1137,7 @@ fn inverse_recenter(r: i32, v: u32) -> i32 {
 
 /// Decode a sub-exponential signed integer relative to reference r.
 fn decode_signed_subexp_with_ref(buf: &mut Buffer, low: i32, high: i32, r: i32) -> i32 {
-    let x = decode_subexp(
-        buf,
-        (high - low) as u32,
-        SGRPROJ_PRJ_SUBEXP_K as u32,
-    );
+    let x = decode_subexp(buf, (high - low) as u32, SGRPROJ_PRJ_SUBEXP_K as u32);
     let v = inverse_recenter(r - low, x);
     v + low
 }
@@ -1144,11 +1152,6 @@ fn read_global_param(
     idx: usize,
     allow_high_precision_mv: bool,
 ) -> i32 {
-    use crate::constants::{
-        GM_ABS_ALPHA_BITS, GM_ABS_TRANS_BITS, GM_ABS_TRANS_ONLY_BITS, GM_ALPHA_PREC_BITS,
-        GM_TRANS_ONLY_PREC_BITS, GM_TRANS_PREC_BITS, WARPEDMODEL_PREC_BITS,
-    };
-
     // Select coding precision based on parameter index and motion model type.
     let (abs_bits, prec_bits) = if idx < 2 {
         if gm_type == GmType::Translation {
@@ -1169,11 +1172,7 @@ fn read_global_param(
     } else {
         0
     };
-    let sub = if idx % 3 == 2 {
-        1i32 << prec_bits
-    } else {
-        0
-    };
+    let sub = if idx % 3 == 2 { 1i32 << prec_bits } else { 0 };
 
     let mx = 1i32 << abs_bits;
     let r = (prev_param >> prec_diff as i32) - sub;
@@ -1253,7 +1252,6 @@ impl GlobalMotionParams {
                     );
                 } else {
                     // RotZoom: parameters 4, 5 are derived from 2, 3 (symmetry constraint).
-                    use crate::constants::WARPEDMODEL_PREC_BITS;
                     gm_params[ref_idx][4] = -gm_params[ref_idx][3];
                     gm_params[ref_idx][5] = gm_params[ref_idx][2];
                     let _ = WARPEDMODEL_PREC_BITS;
@@ -1777,9 +1775,8 @@ impl FrameHeader {
                             let in_spatial = ((op_idc >> (ext.spatial_id + 8)) & 1) != 0;
                             if op_idc == 0 || (in_temporal && in_spatial) {
                                 // buffer_removal_time	f(n)
-                                buffer_removal_times.push(
-                                    buf.get_bits(dmi.buffer_removal_time_length as usize),
-                                );
+                                buffer_removal_times
+                                    .push(buf.get_bits(dmi.buffer_removal_time_length as usize));
                             }
                         }
                     }
@@ -1792,7 +1789,9 @@ impl FrameHeader {
             || (frame_type == FrameType::KeyFrame && show_frame)
         {
             all_frames
-        } else if frame_type == FrameType::IntraOnlyFrame && sequence_header.reduced_still_picture_header {
+        } else if frame_type == FrameType::IntraOnlyFrame
+            && sequence_header.reduced_still_picture_header
+        {
             all_frames
         } else {
             // refresh_frame_flags	f(8)
@@ -1877,8 +1876,7 @@ impl FrameHeader {
             let is_motion_mode_switchable = buf.get_bit();
 
             // use_ref_frame_mvs	f(1)
-            let use_ref_frame_mvs = if error_resilient_mode
-                || !sequence_header.enable_ref_frame_mvs
+            let use_ref_frame_mvs = if error_resilient_mode || !sequence_header.enable_ref_frame_mvs
             {
                 false
             } else {
@@ -1897,14 +1895,17 @@ impl FrameHeader {
 
             let tile_info = TileInfo::decode(ctx, buf);
             let quantization_params = QuantizationParams::decode(ctx, buf);
-            let segmentation_params = SegmentationParams::decode(buf, ctx.frame_is_intra, primary_ref_frame);
+            let segmentation_params =
+                SegmentationParams::decode(buf, ctx.frame_is_intra, primary_ref_frame);
             let delta_q_params = DeltaQParams::decode(buf, quantization_params.base_q_idx);
-            let delta_lf_params = DeltaLfParams::decode(buf, delta_q_params.delta_q_present, allow_intrabc);
+            let delta_lf_params =
+                DeltaLfParams::decode(buf, delta_q_params.delta_q_present, allow_intrabc);
 
             let coded_lossless = quantization_params.is_lossless();
             let all_lossless = coded_lossless && ctx.frame_width == ctx.upscaled_width;
 
-            let loop_filter_params = LoopFilterParams::decode(ctx, buf, coded_lossless, allow_intrabc);
+            let loop_filter_params =
+                LoopFilterParams::decode(ctx, buf, coded_lossless, allow_intrabc);
             let cdef_params = CdefParams::decode(ctx, buf, coded_lossless, allow_intrabc);
             let lr_params = LrParams::decode(ctx, buf, all_lossless, allow_intrabc);
 
@@ -2026,9 +2027,11 @@ impl FrameHeader {
 
         let tile_info = TileInfo::decode(ctx, buf);
         let quantization_params = QuantizationParams::decode(ctx, buf);
-        let segmentation_params = SegmentationParams::decode(buf, ctx.frame_is_intra, primary_ref_frame);
+        let segmentation_params =
+            SegmentationParams::decode(buf, ctx.frame_is_intra, primary_ref_frame);
         let delta_q_params = DeltaQParams::decode(buf, quantization_params.base_q_idx);
-        let delta_lf_params = DeltaLfParams::decode(buf, delta_q_params.delta_q_present, allow_intrabc);
+        let delta_lf_params =
+            DeltaLfParams::decode(buf, delta_q_params.delta_q_present, allow_intrabc);
 
         let coded_lossless = quantization_params.is_lossless();
         let all_lossless = coded_lossless && ctx.frame_width == ctx.upscaled_width;
@@ -2056,12 +2059,7 @@ impl FrameHeader {
 
         // Global motion for intra frames is all-identity; decode_() handles this.
         let prev_gm = ctx.prev_gm_params;
-        let global_motion_params = GlobalMotionParams::decode(
-            buf,
-            true,
-            false,
-            &prev_gm,
-        );
+        let global_motion_params = GlobalMotionParams::decode(buf, true, false, &prev_gm);
 
         let film_grain_params = FilmGrainParams::decode(
             buf,
@@ -2180,7 +2178,9 @@ impl FrameHeader {
                 segmentation_update_map: false,
                 segmentation_temporal_update: false,
                 segmentation_update_data: false,
-                features: core::array::from_fn(|_| core::array::from_fn(|_| SegmentFeature::default())),
+                features: core::array::from_fn(|_| {
+                    core::array::from_fn(|_| SegmentFeature::default())
+                }),
             },
             delta_q_params: DeltaQParams {
                 delta_q_present: false,
@@ -2227,18 +2227,16 @@ fn decode_skip_mode_params(
     frame_type: FrameType,
     reference_select: bool,
 ) -> bool {
-    let skip_mode_allowed = if ctx.frame_is_intra
-        || !reference_select
-        || !sequence_header.enable_order_hint
-    {
-        false
-    } else {
-        // A full decoder would search for the two reference frames whose
-        // order hints are closest to the current frame. For this analysis
-        // tool we assume skip mode is allowed if the conditions above are met.
-        let _ = (frame_type, ref_frame_idx);
-        true
-    };
+    let skip_mode_allowed =
+        if ctx.frame_is_intra || !reference_select || !sequence_header.enable_order_hint {
+            false
+        } else {
+            // A full decoder would search for the two reference frames whose
+            // order hints are closest to the current frame. For this analysis
+            // tool we assume skip mode is allowed if the conditions above are met.
+            let _ = (frame_type, ref_frame_idx);
+            true
+        };
 
     if skip_mode_allowed {
         // skip_mode_present	f(1)
@@ -2252,11 +2250,7 @@ fn decode_skip_mode_params(
 ///
 /// Called at the end of frame header parsing to store frame metadata in the
 /// reference buffer slots indicated by refresh_frame_flags.
-fn update_ref_frame_context(
-    ctx: &mut ObuContext,
-    refresh_frame_flags: u32,
-    frame_type: FrameType,
-) {
+fn update_ref_frame_context(ctx: &mut ObuContext, refresh_frame_flags: u32, frame_type: FrameType) {
     for i in 0..NUM_REF_FRAMES as usize {
         if (refresh_frame_flags >> i) & 1 != 0 {
             if ctx.ref_frame_type.len() > i {

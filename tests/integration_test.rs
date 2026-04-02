@@ -9,6 +9,7 @@
 /// AV1 bitstreams are MSB-first: within each byte the most significant bit
 /// is read first.
 use av1_obu_parser::{
+    IvfReader,
     buffer::Buffer,
     obu::{Obu, ObuParser},
 };
@@ -181,9 +182,11 @@ fn build_sequence_header_obu_640x480() -> Vec<u8> {
 fn test_parse_sequence_header_640x480() {
     let obu_bytes = build_sequence_header_obu_640x480();
     let mut parser = ObuParser::default();
-    let mut buf = Buffer::new(&obu_bytes);
+    let mut buf = Buffer::from_slice(&obu_bytes);
 
-    let result = parser.parse(&mut buf).expect("sequence header should parse successfully");
+    let result = parser
+        .parse(&mut buf)
+        .expect("sequence header should parse successfully");
 
     match result {
         Obu::SequenceHeader(seq) => {
@@ -220,8 +223,10 @@ fn test_parse_obu_header_types() {
     ];
 
     let mut parser = ObuParser::default();
-    let mut buf = Buffer::new(&temporal_delimiter_obu);
-    let result = parser.parse(&mut buf).expect("temporal delimiter should parse successfully");
+    let mut buf = Buffer::from_slice(&temporal_delimiter_obu);
+    let result = parser
+        .parse(&mut buf)
+        .expect("temporal delimiter should parse successfully");
 
     assert!(
         matches!(result, Obu::TemporalDelimiter),
@@ -234,15 +239,15 @@ fn test_parse_obu_header_types() {
 fn test_buffer_basic_read() {
     // 0b10110010 = 0xB2
     let data = [0xB2u8];
-    let mut buf = Buffer::new(&data);
+    let mut buf = Buffer::from_slice(&data);
 
-    assert_eq!(buf.get_bit(), true,  "bit 7 should be 1");
+    assert_eq!(buf.get_bit(), true, "bit 7 should be 1");
     assert_eq!(buf.get_bit(), false, "bit 6 should be 0");
-    assert_eq!(buf.get_bit(), true,  "bit 5 should be 1");
-    assert_eq!(buf.get_bit(), true,  "bit 4 should be 1");
+    assert_eq!(buf.get_bit(), true, "bit 5 should be 1");
+    assert_eq!(buf.get_bit(), true, "bit 4 should be 1");
     assert_eq!(buf.get_bit(), false, "bit 3 should be 0");
     assert_eq!(buf.get_bit(), false, "bit 2 should be 0");
-    assert_eq!(buf.get_bit(), true,  "bit 1 should be 1");
+    assert_eq!(buf.get_bit(), true, "bit 1 should be 1");
     assert_eq!(buf.get_bit(), false, "bit 0 should be 0");
 }
 
@@ -251,7 +256,7 @@ fn test_buffer_basic_read() {
 fn test_buffer_get_bits_crossbyte() {
     // 0xAB 0xCD = 1010_1011 1100_1101
     let data = [0xABu8, 0xCDu8];
-    let mut buf = Buffer::new(&data);
+    let mut buf = Buffer::from_slice(&data);
 
     // 12 bits: 1010_1011_1100 = 0xABC
     assert_eq!(buf.get_bits(12), 0xABC);
@@ -264,18 +269,18 @@ fn test_buffer_get_bits_crossbyte() {
 fn test_buffer_leb128() {
     // Single byte: 5
     let data1 = [0x05u8];
-    let mut buf1 = Buffer::new(&data1);
+    let mut buf1 = Buffer::from_slice(&data1);
     assert_eq!(buf1.get_leb128(), 5);
 
     // Two bytes: 128 → LEB128 [0x80, 0x01]
     let data2 = [0x80u8, 0x01u8];
-    let mut buf2 = Buffer::new(&data2);
+    let mut buf2 = Buffer::from_slice(&data2);
     assert_eq!(buf2.get_leb128(), 128);
 
     // Two bytes: 300 → LEB128 [0xAC, 0x02]
     // 300 = 0b1_0010_1100 → low7 = 0x2C, high = 0x02
     let data3 = [0xACu8, 0x02u8];
-    let mut buf3 = Buffer::new(&data3);
+    let mut buf3 = Buffer::from_slice(&data3);
     assert_eq!(buf3.get_leb128(), 300);
 }
 
@@ -284,17 +289,17 @@ fn test_buffer_leb128() {
 fn test_buffer_get_su() {
     // su(4): read 1100 = 12; sign bit set → 12 - 16 = -4
     let data = [0b1100_0000u8];
-    let mut buf = Buffer::new(&data);
+    let mut buf = Buffer::from_slice(&data);
     assert_eq!(buf.get_su(4), -4);
 
     // su(4): read 0011 = 3; sign bit clear → 3
     let data2 = [0b0011_0000u8];
-    let mut buf2 = Buffer::new(&data2);
+    let mut buf2 = Buffer::from_slice(&data2);
     assert_eq!(buf2.get_su(4), 3);
 
     // su(8): read 0xFF = 255; sign bit set → 255 - 256 = -1
     let data3 = [0xFFu8];
-    let mut buf3 = Buffer::new(&data3);
+    let mut buf3 = Buffer::from_slice(&data3);
     assert_eq!(buf3.get_su(8), -1);
 }
 
@@ -309,7 +314,7 @@ fn test_buffer_get_ns() {
     // 110 → v=3, v>=m, extra bit 0 → (3<<1)-3+0 = 3
     // 111 → v=3, v>=m, extra bit 1 → (3<<1)-3+1 = 4
     let data = [0b00_01_10_11u8, 0b0_11_1_0000u8];
-    let mut buf = Buffer::new(&data);
+    let mut buf = Buffer::from_slice(&data);
 
     assert_eq!(buf.get_ns(5), 0);
     assert_eq!(buf.get_ns(5), 1);
@@ -322,7 +327,7 @@ fn test_buffer_get_ns() {
 #[test]
 fn test_buffer_byte_align() {
     let data = [0xFFu8, 0xAAu8];
-    let mut buf = Buffer::new(&data);
+    let mut buf = Buffer::from_slice(&data);
 
     buf.get_bits(3);
     assert!(!buf.is_byte_aligned());
@@ -340,12 +345,16 @@ fn test_parse_sequence_then_temporal_delimiter() {
     stream.extend_from_slice(&[0x12u8, 0x00u8]); // append temporal delimiter
 
     let mut parser = ObuParser::default();
-    let mut buf = Buffer::new(&stream);
+    let mut buf = Buffer::from_slice(&stream);
 
-    let obu1 = parser.parse(&mut buf).expect("sequence header should parse");
+    let obu1 = parser
+        .parse(&mut buf)
+        .expect("sequence header should parse");
     assert!(matches!(obu1, Obu::SequenceHeader(_)));
 
-    let obu2 = parser.parse(&mut buf).expect("temporal delimiter should parse");
+    let obu2 = parser
+        .parse(&mut buf)
+        .expect("temporal delimiter should parse");
     assert!(matches!(obu2, Obu::TemporalDelimiter));
 }
 
@@ -359,100 +368,52 @@ fn test_parse_sequence_then_temporal_delimiter() {
 /// - 32-byte file header: "DKIF" signature + version + codec + resolution + frame rate
 /// - Repeated frame records: 12-byte frame header (size + PTS) + OBU data
 ///
-/// To run this test, either set the environment variable AV1_TEST_FILE to an
-/// IVF file path, or place the file at tests/fixtures/test.ivf.
-///
-/// Publicly available AV1 test clips:
-/// - AOM Alliance: https://storage.googleapis.com/aom-test-data/
-/// - SVT-AV1: https://github.com/AOMediaCodec/SVT-AV1
+/// This test reads the repository-local `DEMO.ivf` fixture.
 #[test]
 fn test_parse_ivf_file_if_available() {
-    let test_file_path = std::env::var("AV1_TEST_FILE")
-        .unwrap_or_else(|_| "tests/fixtures/test.ivf".to_string());
+    let test_file_path = "DEMO.ivf";
 
-    if !std::path::Path::new(&test_file_path).exists() {
+    if !std::path::Path::new(test_file_path).exists() {
         eprintln!(
             "Skipping IVF file test: {} not found.\n\
-             Set AV1_TEST_FILE to an AV1 IVF file path, or place one at\n\
-             tests/fixtures/test.ivf.\n\
-             Test clips can be obtained from:\n\
-             - https://storage.googleapis.com/aom-test-data/\n\
-             - https://www.webmproject.org/vp9/",
+             Place DEMO.ivf at the repository root.",
             test_file_path
         );
+
         return;
     }
 
     let file_data = std::fs::read(&test_file_path).expect("cannot read test file");
-
-    assert!(
-        file_data.starts_with(b"DKIF"),
-        "file should start with IVF signature 'DKIF'"
-    );
-
-    assert!(file_data.len() >= 32, "IVF file must be at least 32 bytes");
-    let _version = u16::from_le_bytes([file_data[4], file_data[5]]);
-    let _header_size = u16::from_le_bytes([file_data[6], file_data[7]]);
-    let codec = &file_data[8..12];
-    let width = u16::from_le_bytes([file_data[12], file_data[13]]);
-    let height = u16::from_le_bytes([file_data[14], file_data[15]]);
+    let ivf = IvfReader::new(&file_data).expect("test file should be a valid IVF container");
+    let header = ivf.header();
 
     println!(
         "IVF file: codec={}, resolution={}x{}",
-        std::str::from_utf8(codec).unwrap_or("unknown"),
-        width,
-        height
+        header.codec_string(),
+        header.width,
+        header.height
     );
 
-    let mut offset = 32usize;
     let mut frame_count = 0usize;
     let mut seq_header_found = false;
     let mut parser = ObuParser::default();
 
-    while offset + 12 <= file_data.len() {
-        // IVF frame header: 4-byte size (LE) + 8-byte PTS (LE)
-        let frame_size = u32::from_le_bytes([
-            file_data[offset],
-            file_data[offset + 1],
-            file_data[offset + 2],
-            file_data[offset + 3],
-        ]) as usize;
-        let _pts = u64::from_le_bytes([
-            file_data[offset + 4],
-            file_data[offset + 5],
-            file_data[offset + 6],
-            file_data[offset + 7],
-            file_data[offset + 8],
-            file_data[offset + 9],
-            file_data[offset + 10],
-            file_data[offset + 11],
-        ]);
-        offset += 12;
-
-        if offset + frame_size > file_data.len() {
-            break;
-        }
-
-        let frame_data = &file_data[offset..offset + frame_size];
-        offset += frame_size;
-
-        let mut buf = Buffer::new(frame_data);
+    for ivf_frame in ivf.frames().take(10) {
+        let ivf_frame = ivf_frame.expect("IVF frame should be well-formed");
+        let mut buf = Buffer::from_slice(ivf_frame.data);
         loop {
             match parser.parse(&mut buf) {
                 Ok(Obu::SequenceHeader(seq)) => {
                     println!(
                         "frame {}: SequenceHeader {}x{} profile={:?}",
-                        frame_count,
-                        seq.max_frame_width,
-                        seq.max_frame_height,
-                        seq.seq_profile
+                        ivf_frame.index, seq.max_frame_width, seq.max_frame_height, seq.seq_profile
                     );
                     seq_header_found = true;
                 }
                 Ok(Obu::Frame(frame)) => {
                     println!(
                         "frame {}: Frame type={:?} {}x{} Q={} tiles={}x{}",
-                        frame_count,
+                        ivf_frame.index,
                         frame.header.frame_type,
                         frame.header.frame_width,
                         frame.header.frame_height,
@@ -464,7 +425,7 @@ fn test_parse_ivf_file_if_available() {
                 Ok(Obu::FrameHeader(fh)) => {
                     println!(
                         "frame {}: FrameHeader type={:?} {}x{} Q={}",
-                        frame_count,
+                        ivf_frame.index,
                         fh.frame_type,
                         fh.frame_width,
                         fh.frame_height,
@@ -473,10 +434,10 @@ fn test_parse_ivf_file_if_available() {
                 }
                 Ok(Obu::TemporalDelimiter) | Ok(Obu::Drop) => {}
                 Ok(other) => {
-                    println!("frame {}: other OBU: {:?}", frame_count, other);
+                    println!("frame {}: other OBU: {:?}", ivf_frame.index, other);
                 }
                 Err(e) => {
-                    eprintln!("frame {}: parse error: {:?}", frame_count, e);
+                    eprintln!("frame {}: parse error: {:?}", ivf_frame.index, e);
                     break;
                 }
             }
@@ -487,14 +448,12 @@ fn test_parse_ivf_file_if_available() {
         }
 
         frame_count += 1;
-
-        // Parse at most 10 frames to keep test duration bounded.
-        if frame_count >= 10 {
-            break;
-        }
     }
 
     println!("parsed {} frames total", frame_count);
-    assert!(seq_header_found, "should find a sequence header in the bitstream");
+    assert!(
+        seq_header_found,
+        "should find a sequence header in the bitstream"
+    );
     assert!(frame_count > 0, "should parse at least one frame");
 }

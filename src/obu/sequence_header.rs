@@ -1,6 +1,6 @@
-use super::{Buffer, ObuContext, ObuError, ObuUnknownError};
-
-use crate::constants::{SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS};
+use super::{
+    Buffer, ObuContext, ObuError, ObuUnknownError, SELECT_INTEGER_MV, SELECT_SCREEN_CONTENT_TOOLS,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorPrimaries {
@@ -179,17 +179,9 @@ impl ColorConfig {
         ctx.bit_depth = if profile == SequenceProfile::Professional && high_bitdepth {
             // twelve_bit	f(1)
             twelve_bit = buf.get_bit();
-            if twelve_bit {
-                12
-            } else {
-                10
-            }
+            if twelve_bit { 12 } else { 10 }
         } else {
-            if high_bitdepth {
-                10
-            } else {
-                8
-            }
+            if high_bitdepth { 10 } else { 8 }
         };
 
         let mono_chrome = if profile == SequenceProfile::High {

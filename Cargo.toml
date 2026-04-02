@@ -2,6 +2,11 @@
 name = "av1-obu-parser"
 version = "0.1.0-alpha.1"
 edition = "2024"
+description = "A pure Rust parser for AV1 OBU bitstreams and IVF containers."
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/mycrl/av1-obu-parser"
+homepage = "https://github.com/mycrl/av1-obu-parser"
 
 [[example]]
 name = "simple"

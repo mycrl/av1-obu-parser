@@ -31,10 +31,6 @@ metadata for debugging, learning, and tooling.
 - Ship with a runnable example for inspecting `DEMO.ivf`
 - Include focused unit and integration tests
 
-## License
-
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
-
 ## Quick Start
 
 Clone the repository and run the test suite:
@@ -127,7 +123,8 @@ for frame in ivf.frames() {
         }
     }
 }
-# Ok::<(), Box<dyn std::error::Error>>(())
+
+Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
 ## Project Layout
@@ -143,3 +140,7 @@ for frame in ivf.frames() {
   analyzers.
 - `--show-delimiter` is useful when you want local output to line up with tools
   that display every OBU, including temporal delimiters.
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE`](LICENSE).

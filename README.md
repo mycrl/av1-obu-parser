@@ -127,13 +127,6 @@ for frame in ivf.frames() {
 Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-## Project Layout
-
-- `src/buffer.rs`: bit-level AV1 syntax reader
-- `src/obu/`: AV1 OBU parsing logic
-- `examples/simple.rs`: command-line inspection example
-- `tests/integration_test.rs`: parser and IVF integration coverage
-
 ## Notes
 
 - The example output is intended for debugging and comparison with other AV1

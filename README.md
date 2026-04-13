@@ -136,4 +136,4 @@ Ok::<(), Box<dyn std::error::Error>>(())
 
 ## License
 
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE).
+[`MIT`](LICENSE) Copyright (c) 2026 Mycrl.

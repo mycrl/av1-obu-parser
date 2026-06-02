@@ -28,26 +28,11 @@ metadata for debugging, learning, and tooling.
 - Parse AV1 OBU headers and payloads in pure Rust
 - Keep parser context across Sequence Header, Frame Header, and Frame OBUs
 - Read IVF file headers and iterate frame payloads with `IvfReader`
-- Ship with a runnable example for inspecting `DEMO.ivf`
 - Include focused unit and integration tests
-
-## Quick Start
-
-Clone the repository and run the test suite:
-
-```bash
-cargo test
-```
-
-The repository includes a sample IVF file at the project root:
-
-```text
-DEMO.ivf
-```
 
 ## Example Program
 
-Run the bundled example against `DEMO.ivf`:
+Run the bundled example against `sample.ivf`:
 
 ```bash
 cargo run --example simple
@@ -56,19 +41,19 @@ cargo run --example simple
 Limit the output to the first 10 OBUs:
 
 ```bash
-cargo run --example simple -- --oubs 10
+cargo run --example simple -- --obus 10
 ```
 
 Show `TemporalDelimiter` OBUs as well so the numbering matches other analyzers:
 
 ```bash
-cargo run --example simple -- --oubs 10 --show-delimiter
+cargo run --example simple -- --obus 10 --show-delimiter
 ```
 
 Use a different input file:
 
 ```bash
-cargo run --example simple -- --input path/to/sample.ivf --oubs 20 --show-delimiter
+cargo run --example simple -- --input path/to/sample.ivf --obus 20 --show-delimiter
 ```
 
 ## Library Usage
@@ -127,12 +112,67 @@ for frame in ivf.frames() {
 Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-## Notes
+A typical sequence header output
 
-- The example output is intended for debugging and comparison with other AV1
-  analyzers.
-- `--show-delimiter` is useful when you want local output to line up with tools
-  that display every OBU, including temporal delimiters.
+```rust
+SequenceHeader(
+    SequenceHeader {
+        seq_profile: Main,
+        still_picture: false,
+        reduced_still_picture_header: false,
+        timing_info: None,
+        decoder_model_info: None,
+        initial_display_delay_present_flag: false,
+        operating_points: [
+            OperatingPoint {
+                idc: 0,
+                level_idx: 31,
+                tier: false,
+                operating_parameters_info: None,
+                initial_display_delay: 10,
+            },
+        ],
+        frame_width_bits: 9,
+        frame_height_bits: 8,
+        max_frame_width: 320,
+        max_frame_height: 180,
+        frame_id_numbers_present: None,
+        use_128x128_superblock: false,
+        enable_filter_intra: false,
+        enable_intra_edge_filter: false,
+        enable_interintra_compound: false,
+        enable_masked_compound: false,
+        enable_warped_motion: false,
+        enable_dual_filter: false,
+        enable_order_hint: true,
+        enable_jnt_comp: false,
+        enable_ref_frame_mvs: false,
+        seq_choose_screen_content_tools: false,
+        seq_force_screen_content_tools: 0,
+        seq_force_integer_mv: 2,
+        enable_superres: false,
+        enable_cdef: true,
+        enable_restoration: true,
+        color_config: ColorConfig {
+            high_bitdepth: false,
+            twelve_bit: false,
+            mono_chrome: false,
+            color_description_present: false,
+            color_primaries: Unspecified,
+            transfer_characteristics: Unspecified,
+            matrix_coefficients: Unspecified,
+            color_range: false,
+            subsampling_x: true,
+            subsampling_y: true,
+            chroma_sample_position: Some(
+                Unknown,
+            ),
+            separate_uv_delta_q: false,
+        },
+        film_grain_params_present: false,
+    },
+)
+```
 
 ## License
 

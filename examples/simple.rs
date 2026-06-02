@@ -15,11 +15,11 @@ use tokio::fs;
     author = env!("CARGO_PKG_AUTHORS"),
 )]
 struct Configure {
-    #[arg(long, default_value = "DEMO.ivf")]
+    #[arg(long, default_value = "./assets/sample.ivf")]
     input: String,
 
     #[arg(long, default_value_t = 10)]
-    oubs: usize,
+    obus: usize,
 
     #[arg(long)]
     show_delimiter: bool,
@@ -73,7 +73,7 @@ async fn main() {
                 Ok(Obu::Drop) => {}
                 Ok(obu) => {
                     obu_count += 1;
-                    println!("OBU #{obu_count}: {obu:?}");
+                    println!("OBU #{obu_count}: {obu:#?}");
                 }
                 Err(err) => {
                     eprintln!("frame {}: parse error: {err:?}", ivf_frame.index);
@@ -81,7 +81,7 @@ async fn main() {
                 }
             }
 
-            if obu_count >= config.oubs {
+            if obu_count >= config.obus {
                 break 'frames;
             }
         }

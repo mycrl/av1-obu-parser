@@ -28,7 +28,6 @@ metadata for debugging, learning, and tooling.
 - Parse AV1 OBU headers and payloads in pure Rust
 - Keep parser context across Sequence Header, Frame Header, and Frame OBUs
 - Read IVF file headers and iterate frame payloads with `IvfReader`
-- Include focused unit and integration tests
 
 ## Example Program
 
